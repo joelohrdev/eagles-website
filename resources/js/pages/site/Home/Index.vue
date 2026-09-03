@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import {
-    CalendarDays,
-    ChevronDown,
-    Mail,
-    Phone,
-    Trophy,
-} from '@lucide/vue';
+import { CalendarDays, ChevronDown, Mail, Phone, Trophy } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import PageHero from '@/components/site/PageHero.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
