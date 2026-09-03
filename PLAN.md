@@ -235,9 +235,9 @@ This is how parents actually pass the site around — a tryout or camp link drop
 
 ---
 
-## 8. Build Status (2026-08-16)
+## 8. Build Status (2026-09-03)
 
-**Phases 0–4 built and verified.** 233 Pest tests passing (1,589 assertions), `vue-tsc` + ESLint + Pint clean, production `npm run build:ssr` succeeds, SSR verified serving meta/JSON-LD in initial HTML.
+**Phases 0–4 built and verified.** 307 Pest tests passing (2,018 assertions, 4 skipped), `vue-tsc` + ESLint + Pint clean, production `npm run build:ssr` succeeds, SSR verified serving meta/JSON-LD in initial HTML.
 
 **Run locally**
 ```bash
@@ -245,6 +245,11 @@ composer run dev            # Laravel + Vite (SSR automatic in dev) + queue
 php artisan migrate:fresh --seed   # admin: jlohr@autorisknow.com / password  ·  staff: staff@example.com / password
 ```
 Dev seed data (teams, coaches, tryouts, camps, products, orders, contact messages, placeholder facility photos) only seeds in `APP_ENV=local`.
+
+**Page visibility (go live with only the finished pages)**
+Admin → Site Settings → **Pages** switches any of Teams, Facility, Coaching Staff, Camps, Merch, or Contact off while it is still being built. A switched-off page 404s, disappears from the header, mobile nav and footer menus (and from the header CTA if it pointed there), and drops out of `sitemap.xml` and `llms.txt` along with its records. Merch owns the cart and checkout, so switching it off also closes `/cart` and `/checkout` and hides the cart icon; the Stripe webhook stays live so in-flight orders still settle. Tryouts has no toggle by design — its links appear only while a tryout is open for registration.
+
+New public pages must be added to `App\Services\PageVisibility::PAGES` and put behind the `page:{key}` middleware rather than checked ad hoc in controllers or Vue.
 
 **Env to fill in**
 - `STRIPE_KEY`, `STRIPE_SECRET`, `STRIPE_WEBHOOK_SECRET` (test keys now; org's live keys at launch). Without them a FakeGateway is used locally. Webhook endpoint: `POST /stripe/webhook`.
@@ -255,4 +260,4 @@ Dev seed data (teams, coaches, tryouts, camps, products, orders, contact message
 
 **Assumptions baked in (all easy to change):** merch shipping cost = $0 (`CreateMerchOrder::SHIPPING_FLAT_CENTS`); unpaid camp registration hold = 30 min; contact/registration forms use a honeypot + throttle (no CAPTCHA); tryout positions list P/C/1B/2B/SS/3B/OF/UTIL; org address / geo / socials blank until provided (LocalBusiness schema activates automatically once entered under Admin → Site Settings → Organization).
 
-**Phase 5 remaining (launch polish):** logo + real photos/copy, Google Business Profile + Search Console/Bing verification (fields exist in Admin → Site Settings → SEO), custom 404 page, Lighthouse/a11y pass, production hosting + Resend domain + Stripe live keys.
+**Phase 5 remaining (launch polish):** real photos/copy for whichever pages are switched on, Google Business Profile + Search Console/Bing verification (fields exist in Admin → Site Settings → SEO), custom 404 page, Lighthouse/a11y pass, production hosting + Resend domain + Stripe live keys.
