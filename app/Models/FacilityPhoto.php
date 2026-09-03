@@ -32,14 +32,20 @@ class FacilityPhoto extends Model
         'sort_order' => 0,
     ];
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function imageUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::url($this->image_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::url($this->image_path));
     }
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function thumbnailUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::thumbnailUrl($this->image_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::thumbnailUrl($this->image_path));
     }
 
     protected function casts(): array
@@ -49,6 +55,10 @@ class FacilityPhoto extends Model
         ];
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function ordered(Builder $query): Builder
     {

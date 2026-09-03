@@ -37,6 +37,10 @@ class ContactSubmission extends Model
         return $this->read_at !== null;
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function unread(Builder $query): Builder
     {

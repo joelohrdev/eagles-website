@@ -37,7 +37,7 @@ class HomeController extends Controller
         }
 
         $all = $this->settings->all();
-        $faqs = collect($all['seo_faq'] ?? [])->filter(fn ($faq) => filled($faq['question'] ?? null) && filled($faq['answer'] ?? null))->values()->all();
+        $faqs = $this->settings->faqs();
 
         /** The whole section — cards and the "All tryouts" button — stays off until one is open. */
         $tryouts = $this->tryoutAvailability->isOpen()

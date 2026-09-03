@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Contracts\PaymentGateway;
 use App\Exceptions\InvalidWebhookSignature;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Support\Payments\CheckoutSession;
 use App\Support\Payments\WebhookEvent;
 use Stripe\Checkout\Session;
@@ -28,11 +29,11 @@ class StripeGateway implements PaymentGateway
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
             'metadata' => [
-                'order_id' => $order->id,
+                'order_id' => (string) $order->id,
                 'order_number' => $order->number,
                 'order_type' => $order->type->value,
             ],
-            'line_items' => $order->items->map(fn ($item) => [
+            'line_items' => $order->items->map(fn (OrderItem $item) => [
                 'quantity' => $item->quantity,
                 'price_data' => [
                     'currency' => 'usd',

@@ -38,9 +38,11 @@ class SeoResolver
      */
     public function forModel(Model $model, array $defaults = []): SeoData
     {
-        $meta = $model->relationLoaded('seoMeta') ? $model->getRelation('seoMeta') : $model->seoMeta()->first();
+        $meta = $model->relationLoaded('seoMeta')
+            ? $model->getRelation('seoMeta')
+            : SeoMeta::query()->whereMorphedTo('metable', $model)->first();
 
-        return $this->build($meta, $defaults);
+        return $this->build($meta instanceof SeoMeta ? $meta : null, $defaults);
     }
 
     /**

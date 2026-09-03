@@ -54,11 +54,17 @@ class CampRegistration extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Camp, $this>
+     */
     public function camp(): BelongsTo
     {
         return $this->belongsTo(Camp::class);
     }
 
+    /**
+     * @return BelongsTo<Order, $this>
+     */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
@@ -69,6 +75,10 @@ class CampRegistration extends Model
         return "{$this->player_first_name} {$this->player_last_name}";
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function paid(Builder $query): Builder
     {
@@ -77,6 +87,9 @@ class CampRegistration extends Model
 
     /**
      * Registrations that currently hold a spot: paid, or pending and not yet expired.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
      */
     #[Scope]
     protected function countsAgainstCapacity(Builder $query): Builder

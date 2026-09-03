@@ -81,11 +81,17 @@ class Order extends Model
         return $number;
     }
 
+    /**
+     * @return HasMany<OrderItem, $this>
+     */
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
 
+    /**
+     * @return HasOne<CampRegistration, $this>
+     */
     public function campRegistration(): HasOne
     {
         return $this->hasOne(CampRegistration::class);
@@ -101,12 +107,20 @@ class Order extends Model
         return $this->status === OrderStatus::Pending;
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function paid(Builder $query): Builder
     {
         return $query->whereIn('status', [OrderStatus::Paid, OrderStatus::Fulfilled]);
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function awaitingFulfillment(Builder $query): Builder
     {

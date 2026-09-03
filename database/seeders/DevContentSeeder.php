@@ -20,6 +20,7 @@ use App\Services\ImageUploader;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Image;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * Placeholder content for local development. Never run in production.
@@ -124,7 +125,18 @@ class DevContentSeeder extends Seeder
         [$r, $g, $b] = $colors[$seed % count($colors)];
 
         $canvas = imagecreatetruecolor(1200, 800);
-        imagefill($canvas, 0, 0, imagecolorallocate($canvas, $r, $g, $b));
+
+        if ($canvas === false) {
+            throw new RuntimeException('Unable to create the placeholder canvas.');
+        }
+
+        $color = imagecolorallocate($canvas, $r, $g, $b);
+
+        if ($color === false) {
+            throw new RuntimeException('Unable to allocate the placeholder colour.');
+        }
+
+        imagefill($canvas, 0, 0, $color);
         ob_start();
         imagepng($canvas);
         $png = (string) ob_get_clean();

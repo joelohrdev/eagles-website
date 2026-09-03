@@ -46,6 +46,9 @@ class Invitation extends Model
         return Str::random(64);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function inviter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by');
@@ -66,6 +69,10 @@ class Invitation extends Model
         return ! $this->isAccepted() && ! $this->isExpired();
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function pending(Builder $query): Builder
     {

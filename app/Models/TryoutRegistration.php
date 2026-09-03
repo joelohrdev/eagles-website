@@ -37,6 +37,9 @@ class TryoutRegistration extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Tryout, $this>
+     */
     public function tryout(): BelongsTo
     {
         return $this->belongsTo(Tryout::class);

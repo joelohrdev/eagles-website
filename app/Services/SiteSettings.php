@@ -152,6 +152,31 @@ class SiteSettings
         return $this->only(self::GROUPS[$group] ?? []);
     }
 
+    /**
+     * FAQ entries that have both a question and an answer, ready for JSON-LD.
+     *
+     * @return list<array{question: string, answer: string}>
+     */
+    public function faqs(): array
+    {
+        $faqs = [];
+
+        foreach ((array) $this->get('seo_faq') as $faq) {
+            if (! is_array($faq)) {
+                continue;
+            }
+
+            $question = $faq['question'] ?? null;
+            $answer = $faq['answer'] ?? null;
+
+            if (filled($question) && filled($answer)) {
+                $faqs[] = ['question' => (string) $question, 'answer' => (string) $answer];
+            }
+        }
+
+        return $faqs;
+    }
+
     public function set(string $key, mixed $value): void
     {
         SiteSetting::query()->updateOrCreate(['key' => $key], ['value' => $value]);

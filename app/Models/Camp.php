@@ -49,14 +49,20 @@ class Camp extends Model
         'is_published' => false,
     ];
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function imageUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::url($this->image_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::url($this->image_path));
     }
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function imageThumbnailUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::thumbnailUrl($this->image_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::thumbnailUrl($this->image_path));
     }
 
     protected function casts(): array
@@ -72,6 +78,9 @@ class Camp extends Model
         ];
     }
 
+    /**
+     * @return HasMany<CampRegistration, $this>
+     */
     public function registrations(): HasMany
     {
         return $this->hasMany(CampRegistration::class);
@@ -90,6 +99,10 @@ class Camp extends Model
         return $this->registrations()->countsAgainstCapacity()->count();
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function upcoming(Builder $query): Builder
     {
@@ -99,6 +112,10 @@ class Camp extends Model
         );
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function ordered(Builder $query): Builder
     {

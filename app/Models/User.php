@@ -59,6 +59,9 @@ class User extends Authenticatable
         return $this->role === UserRole::Admin;
     }
 
+    /**
+     * @return HasMany<Invitation, $this>
+     */
     public function sentInvitations(): HasMany
     {
         return $this->hasMany(Invitation::class, 'invited_by');

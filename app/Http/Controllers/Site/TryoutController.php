@@ -75,7 +75,7 @@ class TryoutController extends Controller
             'division' => $tryout->division,
             'location' => $tryout->location,
             'description' => $tryout->description,
-            'event_at' => $tryout->event_at?->toIso8601String(),
+            'event_at' => $tryout->event_at->toIso8601String(),
             'registration_opens_at' => $tryout->registration_opens_at?->toIso8601String(),
             'registration_closes_at' => $tryout->registration_closes_at?->toIso8601String(),
             'capacity' => $tryout->capacity,

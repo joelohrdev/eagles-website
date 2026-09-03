@@ -18,10 +18,10 @@ class SyncSeoMeta
     /**
      * @param  array<string, mixed>|null  $seo
      */
-    public function forModel(Model $model, ?array $seo, ?UploadedFile $shareImage = null): ?SeoMeta
+    public function forModel(Model $model, ?array $seo, ?UploadedFile $shareImage = null): SeoMeta
     {
-        /** @var SeoMeta $meta */
-        $meta = $model->seoMeta()->firstOrNew();
+        $meta = SeoMeta::query()->whereMorphedTo('metable', $model)->first() ?? new SeoMeta;
+        $meta->metable()->associate($model);
 
         return $this->apply($meta, $seo, $shareImage);
     }
@@ -29,7 +29,7 @@ class SyncSeoMeta
     /**
      * @param  array<string, mixed>|null  $seo
      */
-    public function forRoute(string $routeKey, ?array $seo, ?UploadedFile $shareImage = null): ?SeoMeta
+    public function forRoute(string $routeKey, ?array $seo, ?UploadedFile $shareImage = null): SeoMeta
     {
         $meta = SeoMeta::query()->firstOrNew(['route_key' => $routeKey]);
 
@@ -39,7 +39,7 @@ class SyncSeoMeta
     /**
      * @param  array<string, mixed>|null  $seo
      */
-    private function apply(SeoMeta $meta, ?array $seo, ?UploadedFile $shareImage): ?SeoMeta
+    private function apply(SeoMeta $meta, ?array $seo, ?UploadedFile $shareImage): SeoMeta
     {
         $seo ??= [];
 

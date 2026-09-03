@@ -135,7 +135,7 @@ class Cart
         $lines = $this->lines();
 
         return [
-            'lines' => $lines->map(fn (array $line) => [
+            'lines' => array_values($lines->map(fn (array $line) => [
                 'variant_id' => $line['variant']->id,
                 'product_name' => $line['variant']->product->name,
                 'product_slug' => $line['variant']->product->slug,
@@ -147,7 +147,7 @@ class Cart
                 'quantity' => $line['quantity'],
                 'unit_price' => $line['unit_price'],
                 'line_total' => $line['line_total'],
-            ])->values()->all(),
+            ])->all()),
             'subtotal' => (int) $lines->sum('line_total'),
             'count' => (int) $lines->sum('quantity'),
         ];

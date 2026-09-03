@@ -74,18 +74,30 @@ class NavigationItem extends Model
         return $this->route_name ? (StaticPages::all()[$this->route_name]['label'] ?? $this->route_name) : null;
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function visible(Builder $query): Builder
     {
         return $query->where('is_visible', true);
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function location(Builder $query, string $location): Builder
     {
         return $query->where('location', $location);
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function ordered(Builder $query): Builder
     {

@@ -53,6 +53,10 @@ class CampRegistrationController extends Controller
         return response()->streamDownload(function () use ($camp, $search, $status): void {
             $handle = fopen('php://output', 'w');
 
+            if ($handle === false) {
+                return;
+            }
+
             fputcsv($handle, ['Player', 'Birthdate', 'Parent/Guardian', 'Email', 'Phone', 'Emergency contact', 'Emergency phone', 'Medical notes', 'Status', 'Order number', 'Registered at']);
 
             $this->query($camp, $search, $status)->lazy()->each(function (CampRegistration $registration) use ($handle): void {

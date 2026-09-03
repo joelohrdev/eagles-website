@@ -10,8 +10,8 @@ use App\Http\Requests\Admin\UpdateTeamRequest;
 use App\Models\Coach;
 use App\Models\Team;
 use App\Services\ImageUploader;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -130,9 +130,9 @@ class TeamController extends Controller
     }
 
     /**
-     * @return Collection<int, array{id: int, name: string}>
+     * @return EloquentCollection<int, Coach>
      */
-    private function coachOptions()
+    private function coachOptions(): EloquentCollection
     {
         return Coach::query()->ordered()->get(['id', 'name']);
     }

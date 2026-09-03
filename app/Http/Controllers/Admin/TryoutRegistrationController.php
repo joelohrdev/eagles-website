@@ -49,6 +49,10 @@ class TryoutRegistrationController extends Controller
         return response()->streamDownload(function () use ($tryout): void {
             $handle = fopen('php://output', 'w');
 
+            if ($handle === false) {
+                return;
+            }
+
             fputcsv($handle, ['Player', 'Birthdate', 'Parent/Guardian', 'Email', 'Phone', 'Current team', 'Position', 'Notes', 'Registered at']);
 
             $tryout->registrations()

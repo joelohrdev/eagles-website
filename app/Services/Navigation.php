@@ -107,22 +107,22 @@ class Navigation
         $items = NavigationItem::query()->location($location)->ordered()->get();
 
         if ($items->isEmpty()) {
-            return collect(self::DEFAULTS[$location] ?? [])->map(fn (array $item) => [
+            return array_values(collect(self::DEFAULTS[$location] ?? [])->map(fn (array $item) => [
                 'id' => null,
                 'label' => $item['label'],
                 'href' => route($item['route_name'], absolute: false),
                 'external' => false,
                 'new_tab' => false,
-            ])->all();
+            ])->all());
         }
 
-        return $items->filter->is_visible->values()->map(fn (NavigationItem $item) => [
+        return array_values($items->filter->is_visible->map(fn (NavigationItem $item) => [
             'id' => $item->id,
             'label' => $item->label,
             'href' => $item->href(),
             'external' => ! $item->isPageLink() && ! str_starts_with((string) $item->url, '/'),
             'new_tab' => $item->opens_in_new_tab,
-        ])->all();
+        ])->all());
     }
 
     /**
@@ -153,9 +153,11 @@ class Navigation
      */
     public function pageOptions(): array
     {
-        $pages = collect(StaticPages::all())->map(fn (array $page, string $key) => ['value' => $key, 'label' => $page['label']]);
+        $pages = collect(StaticPages::all())
+            ->map(fn (array $page, string $key) => ['value' => $key, 'label' => $page['label']])
+            ->values();
 
-        return $pages->push(['value' => 'cart.index', 'label' => 'Cart'])->values()->all();
+        return array_values($pages->push(['value' => 'cart.index', 'label' => 'Cart'])->all());
     }
 
     public function flush(): void

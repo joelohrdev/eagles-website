@@ -80,6 +80,10 @@ trait HasRegistrationWindow
         };
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function published(Builder $query): Builder
     {

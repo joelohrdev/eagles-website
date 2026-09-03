@@ -27,9 +27,11 @@ class NavigationController extends Controller
 
         $items = NavigationItem::query()->ordered()->get()->groupBy('location');
 
-        return Inertia::render('admin/navigation/Index', [
-            'menus' => collect(NavigationItem::LOCATIONS)->mapWithKeys(fn (string $location) => [
-                $location => ($items[$location] ?? collect())->map(fn (NavigationItem $item) => [
+        $menus = [];
+
+        foreach (NavigationItem::LOCATIONS as $location) {
+            $menus[$location] = ($items[$location] ?? collect())
+                ->map(fn (NavigationItem $item) => [
                     'id' => $item->id,
                     'label' => $item->label,
                     'link_type' => $item->isPageLink() ? 'page' : 'custom',
@@ -38,8 +40,13 @@ class NavigationController extends Controller
                     'href' => $item->href(),
                     'opens_in_new_tab' => $item->opens_in_new_tab,
                     'is_visible' => $item->is_visible,
-                ])->values(),
-            ]),
+                ])
+                ->values()
+                ->all();
+        }
+
+        return Inertia::render('admin/navigation/Index', [
+            'menus' => $menus,
             'pages' => $this->navigation->pageOptions(),
             'settings' => $this->settings->group('navigation'),
         ]);

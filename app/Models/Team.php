@@ -43,14 +43,20 @@ class Team extends Model
         'is_active' => true,
     ];
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function photoUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::url($this->photo_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::url($this->photo_path));
     }
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function photoThumbnailUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::thumbnailUrl($this->photo_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::thumbnailUrl($this->photo_path));
     }
 
     protected function casts(): array
@@ -61,17 +67,28 @@ class Team extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Coach, $this>
+     */
     public function coach(): BelongsTo
     {
         return $this->belongsTo(Coach::class);
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function active(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function ordered(Builder $query): Builder
     {

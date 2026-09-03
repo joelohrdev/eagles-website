@@ -44,9 +44,12 @@ class SeoMeta extends Model
      */
     public const array EDITABLE = ['title', 'description', 'canonical_url', 'robots', 'share_title', 'share_description', 'share_image_alt', 'twitter_card', 'json_ld'];
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function shareImageUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::url($this->share_image_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::url($this->share_image_path));
     }
 
     protected function casts(): array
@@ -56,6 +59,9 @@ class SeoMeta extends Model
         ];
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function metable(): MorphTo
     {
         return $this->morphTo();

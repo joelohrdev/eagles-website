@@ -39,6 +39,9 @@ class ProductVariant extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Product, $this>
+     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
@@ -62,6 +65,10 @@ class ProductVariant extends Model
         return $this->stock === null || $this->stock >= $quantity;
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function active(Builder $query): Builder
     {

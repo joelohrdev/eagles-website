@@ -41,14 +41,20 @@ class Product extends Model
         'sort_order' => 0,
     ];
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function imageUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::url($this->image_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::url($this->image_path));
     }
 
+    /**
+     * @return Attribute<string|null, never>
+     */
     protected function imageThumbnailUrl(): Attribute
     {
-        return Attribute::get(fn (): ?string => ImageUploader::thumbnailUrl($this->image_path));
+        return Attribute::make(get: fn (): ?string => ImageUploader::thumbnailUrl($this->image_path));
     }
 
     protected function casts(): array
@@ -60,17 +66,28 @@ class Product extends Model
         ];
     }
 
+    /**
+     * @return HasMany<ProductVariant, $this>
+     */
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function active(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     #[Scope]
     protected function ordered(Builder $query): Builder
     {
