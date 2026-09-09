@@ -103,3 +103,40 @@ test('an expired checkout leaves an already paid order alone', function () {
 
     expect($order->refresh()->status)->toBe(OrderStatus::Paid);
 });
+
+test('a full refund marks the order refunded and releases the camp registration', function () {
+    $order = Order::factory()->camp()->paid()->create(['stripe_payment_intent_id' => 'pi_refund_me']);
+    $registration = CampRegistration::factory()->create(['order_id' => $order->id, 'status' => RegistrationStatus::Paid]);
+
+    webhook(['type' => 'charge.refunded', 'payment_intent' => 'pi_refund_me', 'refunded' => true])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded)
+        ->and($registration->refresh()->status)->toBe(RegistrationStatus::Refunded);
+
+    // Replayed event is a no-op.
+    webhook(['type' => 'charge.refunded', 'payment_intent' => 'pi_refund_me', 'refunded' => true])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded);
+});
+
+test('a full refund also closes a fulfilled merch order', function () {
+    $order = Order::factory()->fulfilled()->create(['stripe_payment_intent_id' => 'pi_fulfilled']);
+
+    webhook(['type' => 'charge.refunded', 'payment_intent' => 'pi_fulfilled', 'refunded' => true])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded);
+});
+
+test('a partial refund leaves the order paid for staff to review', function () {
+    $order = Order::factory()->paid()->create(['stripe_payment_intent_id' => 'pi_partial']);
+
+    webhook(['type' => 'charge.refunded', 'payment_intent' => 'pi_partial', 'refunded' => false])->assertOk();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid);
+});
+
+test('a refund for an unknown payment intent is acknowledged', function () {
+    webhook(['type' => 'charge.refunded', 'payment_intent' => 'pi_nobody', 'refunded' => true])
+        ->assertOk()
+        ->assertSee('Unknown order');
+});

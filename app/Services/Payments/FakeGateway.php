@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 /**
  * In-memory gateway for tests and local development without Stripe keys.
- * Webhook payloads are plain JSON: {"type": "...", "session_id": "...", "payment_intent": "...", "payment_status": "paid"}
+ * Webhook payloads are plain JSON: {"type": "...", "session_id": "...", "payment_intent": "...", "payment_status": "paid", "refunded": true}
  * with the signature header equal to the literal string "fake".
  */
 class FakeGateway implements PaymentGateway
@@ -40,6 +40,7 @@ class FakeGateway implements PaymentGateway
             checkoutSessionId: $data['session_id'] ?? null,
             paymentIntentId: $data['payment_intent'] ?? null,
             paymentStatus: $data['payment_status'] ?? null,
+            fullyRefunded: (bool) ($data['refunded'] ?? false),
         );
     }
 }

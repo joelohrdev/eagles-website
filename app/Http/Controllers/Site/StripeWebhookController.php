@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Actions\Orders\CancelPendingOrder;
 use App\Actions\Orders\MarkOrderPaid;
+use App\Actions\Orders\RefundOrder;
 use App\Contracts\PaymentGateway;
 use App\Exceptions\InvalidWebhookSignature;
 use App\Http\Controllers\Controller;
@@ -17,6 +18,7 @@ class StripeWebhookController extends Controller
         private PaymentGateway $gateway,
         private MarkOrderPaid $markOrderPaid,
         private CancelPendingOrder $cancelPendingOrder,
+        private RefundOrder $refundOrder,
     ) {}
 
     /**
@@ -30,11 +32,16 @@ class StripeWebhookController extends Controller
             return response('Invalid signature', 400);
         }
 
-        if ($event->checkoutSessionId === null) {
+        if (! $event->identifiesOrder()) {
             return response('Ignored', 200);
         }
 
-        $order = Order::query()->where('stripe_checkout_session_id', $event->checkoutSessionId)->first();
+        $order = Order::query()
+            ->when($event->checkoutSessionId !== null,
+                fn ($q) => $q->where('stripe_checkout_session_id', $event->checkoutSessionId),
+                fn ($q) => $q->where('stripe_payment_intent_id', $event->paymentIntentId),
+            )
+            ->first();
 
         if ($order === null) {
             return response('Unknown order', 200);
@@ -44,6 +51,8 @@ class StripeWebhookController extends Controller
             $this->markOrderPaid->handle($order, $event->paymentIntentId);
         } elseif ($event->isCheckoutExpired()) {
             $this->cancelPendingOrder->handle($order);
+        } elseif ($event->isFullyRefunded()) {
+            $this->refundOrder->handle($order);
         }
 
         return response('OK', 200);

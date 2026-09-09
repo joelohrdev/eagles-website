@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Support\Payments\CheckoutSession;
 use App\Support\Payments\WebhookEvent;
+use Stripe\Charge;
 use Stripe\Checkout\Session;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
@@ -61,14 +62,18 @@ class StripeGateway implements PaymentGateway
             throw new InvalidWebhookSignature($e->getMessage(), previous: $e);
         }
 
-        /** @var Session|object $object */
+        /** @var Session|Charge|object $object */
         $object = $event->data->object;
+
+        /** Checkout events carry a session; charge events (refunds) only carry the payment intent. */
+        $isSession = ($object->object ?? null) === 'checkout.session';
 
         return new WebhookEvent(
             type: $event->type,
-            checkoutSessionId: $object->id ?? null,
+            checkoutSessionId: $isSession ? ($object->id ?? null) : null,
             paymentIntentId: is_string($object->payment_intent ?? null) ? $object->payment_intent : null,
             paymentStatus: $object->payment_status ?? null,
+            fullyRefunded: (bool) ($object->refunded ?? false),
         );
     }
 }
