@@ -68,6 +68,10 @@ test('admin can update home settings with offerings and images', function () {
                 ['title' => 'Teams', 'description' => 'Competitive teams'],
                 ['title' => 'Camps', 'description' => ''],
             ],
+            'home_whats_new_title' => 'New for 2027',
+            'home_whats_new_items' => [
+                ['title' => 'Weight Room', 'description' => ''],
+            ],
             'home_hero_image' => UploadedFile::fake()->image('hero.jpg', 1600, 900),
         ])
         ->assertSessionHasNoErrors();
@@ -77,6 +81,8 @@ test('admin can update home settings with offerings and images', function () {
     expect($settings->get('home_hero_headline'))->toBe('Play for the Eagles')
         ->and($settings->get('home_offerings'))->toHaveCount(2)
         ->and($settings->get('home_offerings')[1]['description'])->toBeNull()
+        ->and($settings->get('home_whats_new_title'))->toBe('New for 2027')
+        ->and($settings->get('home_whats_new_items'))->toBe([['title' => 'Weight Room', 'description' => null]])
         ->and($settings->get('home_hero_image'))->toStartWith('settings/');
 
     Storage::disk('public')->assertExists($settings->get('home_hero_image'));
@@ -87,8 +93,10 @@ test('home settings validate offering rows', function () {
         ->put(route('admin.settings.update', 'home'), [
             'home_hero_headline' => 'x',
             'home_offerings' => [['title' => '']],
+            'home_values' => [['title' => 'Grit', 'description' => str_repeat('x', 301)]],
+            'home_development_tiers' => array_fill(0, 5, ['title' => '10U']),
         ])
-        ->assertSessionHasErrors(['home_offerings.0.title']);
+        ->assertSessionHasErrors(['home_offerings.0.title', 'home_values.0.description', 'home_development_tiers']);
 });
 
 test('admin can remove a settings image', function () {

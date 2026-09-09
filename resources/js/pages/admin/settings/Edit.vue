@@ -3,17 +3,20 @@ import { Form, Head, Link } from '@inertiajs/vue3';
 import { Plus, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import SiteSettingController from '@/actions/App/Http/Controllers/Admin/SiteSettingController';
+import FormTabs from '@/components/admin/FormTabs.vue';
 import ImageUpload from '@/components/admin/ImageUpload.vue';
+import RepeaterRows from '@/components/admin/RepeaterRows.vue';
+import type { RepeaterRow } from '@/components/admin/RepeaterRows.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { edit as settingsEdit } from '@/routes/admin/settings';
 
-type Offering = { title: string; description: string };
 type Faq = { question: string; answer: string };
 type SettingsGroup =
     'organization' | 'home' | 'facility' | 'contact' | 'pages' | 'seo';
@@ -46,14 +49,23 @@ const str = (key: string): string => {
     return value === null || value === undefined ? '' : String(value);
 };
 
-const offerings = ref<Offering[]>(
-    Array.isArray(props.settings.home_offerings)
-        ? (props.settings.home_offerings as Partial<Offering>[]).map((o) => ({
-              title: o.title ?? '',
-              description: o.description ?? '',
+const rows = (key: string): RepeaterRow[] => {
+    const value = props.settings[key];
+
+    return Array.isArray(value)
+        ? (value as Partial<RepeaterRow>[]).map((row) => ({
+              title: row.title ?? '',
+              description: row.description ?? '',
           }))
-        : [],
-);
+        : [];
+};
+
+const values = ref(rows('home_values'));
+const goals = ref(rows('home_goals'));
+const developmentTiers = ref(rows('home_development_tiers'));
+const yearRoundItems = ref(rows('home_year_round_items'));
+const whatsNewItems = ref(rows('home_whats_new_items'));
+const offerings = ref(rows('home_offerings'));
 const faqs = ref<Faq[]>(
     Array.isArray(props.settings.seo_faq)
         ? (props.settings.seo_faq as Faq[]).map((f) => ({ ...f }))
@@ -262,224 +274,520 @@ const currentLabel =
 
             <!-- Home -->
             <template v-else-if="group === 'home'">
-                <section class="space-y-4">
-                    <h3 class="text-sm font-semibold">Hero</h3>
-                    <div class="grid content-start gap-2">
-                        <Label for="home_hero_headline">Headline</Label>
-                        <Input
-                            id="home_hero_headline"
-                            name="home_hero_headline"
-                            :default-value="str('home_hero_headline')"
-                            required
-                        />
-                        <InputError :message="errors.home_hero_headline" />
-                    </div>
-                    <div class="grid content-start gap-2">
-                        <Label for="home_hero_subheadline">Sub-headline</Label>
-                        <Textarea
-                            id="home_hero_subheadline"
-                            name="home_hero_subheadline"
-                            rows="2"
-                            :default-value="str('home_hero_subheadline')"
-                        />
-                        <InputError :message="errors.home_hero_subheadline" />
-                    </div>
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div class="grid content-start gap-2">
-                            <Label for="home_hero_cta_label"
-                                >Primary button label</Label
-                            >
-                            <Input
-                                id="home_hero_cta_label"
-                                name="home_hero_cta_label"
-                                :default-value="str('home_hero_cta_label')"
-                            />
-                            <InputError :message="errors.home_hero_cta_label" />
-                        </div>
-                        <div class="grid content-start gap-2">
-                            <Label for="home_hero_cta_url"
-                                >Primary button link</Label
-                            >
-                            <Input
-                                id="home_hero_cta_url"
-                                name="home_hero_cta_url"
-                                :default-value="str('home_hero_cta_url')"
-                                placeholder="/tryouts"
-                            />
-                            <InputError :message="errors.home_hero_cta_url" />
-                        </div>
-                        <div class="grid content-start gap-2">
-                            <Label for="home_hero_secondary_cta_label"
-                                >Secondary button label</Label
-                            >
-                            <Input
-                                id="home_hero_secondary_cta_label"
-                                name="home_hero_secondary_cta_label"
-                                :default-value="
-                                    str('home_hero_secondary_cta_label')
-                                "
-                            />
-                            <InputError
-                                :message="errors.home_hero_secondary_cta_label"
-                            />
-                        </div>
-                        <div class="grid content-start gap-2">
-                            <Label for="home_hero_secondary_cta_url"
-                                >Secondary button link</Label
-                            >
-                            <Input
-                                id="home_hero_secondary_cta_url"
-                                name="home_hero_secondary_cta_url"
-                                :default-value="
-                                    str('home_hero_secondary_cta_url')
-                                "
-                                placeholder="/contact"
-                            />
-                            <InputError
-                                :message="errors.home_hero_secondary_cta_url"
-                            />
-                        </div>
-                    </div>
-                    <ImageUpload
-                        name="home_hero_image"
-                        label="Hero background image"
-                        remove-name="remove_home_hero_image"
-                        :current-url="imageUrls.home_hero_image ?? null"
-                        :error="errors.home_hero_image"
-                        hint="Wide landscape photo works best (also used as the default share image for the home page)."
-                    />
-                </section>
-
-                <section class="space-y-4 border-t pt-6">
-                    <h3 class="text-sm font-semibold">Intro</h3>
-                    <div class="grid content-start gap-2">
-                        <Label for="home_intro">Intro paragraph</Label>
-                        <Textarea
-                            id="home_intro"
-                            name="home_intro"
-                            rows="3"
-                            :default-value="str('home_intro')"
-                        />
-                        <p class="text-xs text-muted-foreground">
-                            One direct sentence describing who you are and what
-                            you offer — this is what search engines and AI
-                            assistants quote.
-                        </p>
-                        <InputError :message="errors.home_intro" />
-                    </div>
-                </section>
-
-                <section class="space-y-4 border-t pt-6">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold">What we offer</h3>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            :disabled="offerings.length >= 6"
-                            @click="
-                                offerings.push({
-                                    title: '',
-                                    description: '',
-                                })
-                            "
+                <FormTabs
+                    :errors="errors"
+                    :tabs="[
+                        {
+                            value: 'hero',
+                            prefix: ['home_hero', 'remove_home_hero'],
+                        },
+                        {
+                            value: 'mission',
+                            prefix: [
+                                'home_mission',
+                                'home_intro',
+                                'home_belief',
+                            ],
+                        },
+                        { value: 'whats-new', prefix: 'home_whats_new' },
+                        {
+                            value: 'philosophy',
+                            prefix: [
+                                'home_philosophy',
+                                'home_values',
+                                'home_goals',
+                            ],
+                        },
+                        {
+                            value: 'development',
+                            prefix: ['home_development', 'home_year_round'],
+                        },
+                        { value: 'about' },
+                    ]"
+                    class="w-full"
+                >
+                    <TabsList class="h-auto flex-wrap justify-start">
+                        <TabsTrigger value="hero">Hero</TabsTrigger>
+                        <TabsTrigger value="mission">Mission</TabsTrigger>
+                        <TabsTrigger value="whats-new">What's new</TabsTrigger>
+                        <TabsTrigger value="philosophy"
+                            >Philosophy & goals</TabsTrigger
                         >
-                            <Plus class="size-4" /> Add item
-                        </Button>
-                    </div>
-                    <InputError :message="errors.home_offerings" />
-                    <div
-                        v-for="(offering, i) in offerings"
-                        :key="i"
-                        class="grid gap-3 rounded-md border p-3 sm:grid-cols-[1fr_auto]"
-                    >
-                        <div class="grid content-start gap-2">
-                            <Label :for="`offering_title_${i}`">Title</Label>
-                            <Input
-                                :id="`offering_title_${i}`"
-                                v-model="offering.title"
-                                :name="`home_offerings[${i}][title]`"
-                                required
-                            />
-                            <InputError
-                                :message="errors[`home_offerings.${i}.title`]"
-                            />
-                        </div>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            class="mt-6 text-destructive"
-                            aria-label="Remove item"
-                            @click="offerings.splice(i, 1)"
+                        <TabsTrigger value="development"
+                            >Development</TabsTrigger
                         >
-                            <Trash2 class="size-4" />
-                        </Button>
-                        <div class="grid content-start gap-2 sm:col-span-2">
-                            <Label :for="`offering_desc_${i}`"
-                                >Description</Label
-                            >
-                            <Textarea
-                                :id="`offering_desc_${i}`"
-                                v-model="offering.description"
-                                :name="`home_offerings[${i}][description]`"
-                                rows="2"
-                            />
-                            <InputError
-                                :message="
-                                    errors[`home_offerings.${i}.description`]
-                                "
-                            />
-                        </div>
-                    </div>
-                    <p
-                        v-if="offerings.length === 0"
-                        class="text-sm text-muted-foreground"
-                    >
-                        No items yet — add up to six.
-                    </p>
-                </section>
+                        <TabsTrigger value="about">About & closing</TabsTrigger>
+                    </TabsList>
 
-                <section class="space-y-4 border-t pt-6">
-                    <h3 class="text-sm font-semibold">About</h3>
-                    <div class="grid content-start gap-2">
-                        <Label for="home_about_heading">Heading</Label>
-                        <Input
-                            id="home_about_heading"
-                            name="home_about_heading"
-                            :default-value="str('home_about_heading')"
+                    <TabsContent value="hero" class="mt-6 space-y-8">
+                        <section class="space-y-4">
+                            <h3 class="text-sm font-semibold">Hero</h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_hero_headline">Headline</Label>
+                                <Input
+                                    id="home_hero_headline"
+                                    name="home_hero_headline"
+                                    :default-value="str('home_hero_headline')"
+                                    required
+                                />
+                                <InputError
+                                    :message="errors.home_hero_headline"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_hero_subheadline"
+                                    >Sub-headline</Label
+                                >
+                                <Textarea
+                                    id="home_hero_subheadline"
+                                    name="home_hero_subheadline"
+                                    rows="2"
+                                    :default-value="
+                                        str('home_hero_subheadline')
+                                    "
+                                />
+                                <InputError
+                                    :message="errors.home_hero_subheadline"
+                                />
+                            </div>
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="grid content-start gap-2">
+                                    <Label for="home_hero_cta_label"
+                                        >Primary button label</Label
+                                    >
+                                    <Input
+                                        id="home_hero_cta_label"
+                                        name="home_hero_cta_label"
+                                        :default-value="
+                                            str('home_hero_cta_label')
+                                        "
+                                    />
+                                    <InputError
+                                        :message="errors.home_hero_cta_label"
+                                    />
+                                </div>
+                                <div class="grid content-start gap-2">
+                                    <Label for="home_hero_cta_url"
+                                        >Primary button link</Label
+                                    >
+                                    <Input
+                                        id="home_hero_cta_url"
+                                        name="home_hero_cta_url"
+                                        :default-value="
+                                            str('home_hero_cta_url')
+                                        "
+                                        placeholder="/tryouts"
+                                    />
+                                    <InputError
+                                        :message="errors.home_hero_cta_url"
+                                    />
+                                </div>
+                                <div class="grid content-start gap-2">
+                                    <Label for="home_hero_secondary_cta_label"
+                                        >Secondary button label</Label
+                                    >
+                                    <Input
+                                        id="home_hero_secondary_cta_label"
+                                        name="home_hero_secondary_cta_label"
+                                        :default-value="
+                                            str('home_hero_secondary_cta_label')
+                                        "
+                                    />
+                                    <InputError
+                                        :message="
+                                            errors.home_hero_secondary_cta_label
+                                        "
+                                    />
+                                </div>
+                                <div class="grid content-start gap-2">
+                                    <Label for="home_hero_secondary_cta_url"
+                                        >Secondary button link</Label
+                                    >
+                                    <Input
+                                        id="home_hero_secondary_cta_url"
+                                        name="home_hero_secondary_cta_url"
+                                        :default-value="
+                                            str('home_hero_secondary_cta_url')
+                                        "
+                                        placeholder="/contact"
+                                    />
+                                    <InputError
+                                        :message="
+                                            errors.home_hero_secondary_cta_url
+                                        "
+                                    />
+                                </div>
+                            </div>
+                            <ImageUpload
+                                name="home_hero_image"
+                                label="Hero background image"
+                                remove-name="remove_home_hero_image"
+                                :current-url="imageUrls.home_hero_image ?? null"
+                                :error="errors.home_hero_image"
+                                hint="Wide landscape photo works best (also used as the default share image for the home page)."
+                            />
+                        </section>
+                    </TabsContent>
+
+                    <TabsContent value="mission" class="mt-6 space-y-8">
+                        <section class="space-y-4">
+                            <h3 class="text-sm font-semibold">Our mission</h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_mission_title">Heading</Label>
+                                <Input
+                                    id="home_mission_title"
+                                    name="home_mission_title"
+                                    :default-value="str('home_mission_title')"
+                                />
+                                <InputError
+                                    :message="errors.home_mission_title"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_intro"
+                                    >Opening statement</Label
+                                >
+                                <Textarea
+                                    id="home_intro"
+                                    name="home_intro"
+                                    rows="3"
+                                    :default-value="str('home_intro')"
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    One direct sentence describing who you are —
+                                    shown large at the top of the mission
+                                    section and quoted by search engines and AI
+                                    assistants.
+                                </p>
+                                <InputError :message="errors.home_intro" />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_mission_body">Mission</Label>
+                                <Textarea
+                                    id="home_mission_body"
+                                    name="home_mission_body"
+                                    rows="4"
+                                    :default-value="str('home_mission_body')"
+                                />
+                                <InputError
+                                    :message="errors.home_mission_body"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_belief">What we believe</Label>
+                                <Textarea
+                                    id="home_belief"
+                                    name="home_belief"
+                                    rows="3"
+                                    :default-value="str('home_belief')"
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    A single closing statement, shown as a pull
+                                    quote.
+                                </p>
+                                <InputError :message="errors.home_belief" />
+                            </div>
+                        </section>
+                    </TabsContent>
+
+                    <TabsContent value="whats-new" class="mt-6 space-y-8">
+                        <section class="space-y-4">
+                            <h3 class="text-sm font-semibold">
+                                What's new this season
+                            </h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_whats_new_title"
+                                    >Heading</Label
+                                >
+                                <Input
+                                    id="home_whats_new_title"
+                                    name="home_whats_new_title"
+                                    :default-value="str('home_whats_new_title')"
+                                />
+                                <InputError
+                                    :message="errors.home_whats_new_title"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_whats_new_body">Intro</Label>
+                                <Textarea
+                                    id="home_whats_new_body"
+                                    name="home_whats_new_body"
+                                    rows="2"
+                                    :default-value="str('home_whats_new_body')"
+                                />
+                                <InputError
+                                    :message="errors.home_whats_new_body"
+                                />
+                            </div>
+                        </section>
+
+                        <RepeaterRows
+                            v-model="whatsNewItems"
+                            name="home_whats_new_items"
+                            label="What's new items"
+                            :max="8"
+                            :errors="errors"
+                            hint="Shown prominently near the top of the home page."
                         />
-                        <InputError :message="errors.home_about_heading" />
-                    </div>
-                    <div class="grid content-start gap-2">
-                        <Label for="home_about_body">Body</Label>
-                        <Textarea
-                            id="home_about_body"
-                            name="home_about_body"
-                            rows="6"
-                            :default-value="str('home_about_body')"
+                    </TabsContent>
+
+                    <TabsContent value="philosophy" class="mt-6 space-y-8">
+                        <section class="space-y-4">
+                            <h3 class="text-sm font-semibold">
+                                Coaching philosophy
+                            </h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_philosophy_title"
+                                    >Heading</Label
+                                >
+                                <Input
+                                    id="home_philosophy_title"
+                                    name="home_philosophy_title"
+                                    :default-value="
+                                        str('home_philosophy_title')
+                                    "
+                                />
+                                <InputError
+                                    :message="errors.home_philosophy_title"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_philosophy_body">Intro</Label>
+                                <Textarea
+                                    id="home_philosophy_body"
+                                    name="home_philosophy_body"
+                                    rows="4"
+                                    :default-value="str('home_philosophy_body')"
+                                />
+                                <InputError
+                                    :message="errors.home_philosophy_body"
+                                />
+                            </div>
+                        </section>
+
+                        <RepeaterRows
+                            v-model="values"
+                            name="home_values"
+                            label="Core values"
+                            :max="10"
+                            :errors="errors"
                         />
-                        <InputError :message="errors.home_about_body" />
-                    </div>
-                    <ImageUpload
-                        name="home_about_image"
-                        label="About image"
-                        remove-name="remove_home_about_image"
-                        :current-url="imageUrls.home_about_image ?? null"
-                        :error="errors.home_about_image"
-                    />
-                    <div class="grid content-start gap-2">
-                        <Label for="home_youtube_url">YouTube video URL</Label>
-                        <Input
-                            id="home_youtube_url"
-                            name="home_youtube_url"
-                            type="url"
-                            :default-value="str('home_youtube_url')"
-                            placeholder="https://www.youtube.com/watch?v=…"
+
+                        <section class="space-y-4 border-t pt-6">
+                            <h3 class="text-sm font-semibold">Our goals</h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_goals_title">Heading</Label>
+                                <Input
+                                    id="home_goals_title"
+                                    name="home_goals_title"
+                                    :default-value="str('home_goals_title')"
+                                />
+                                <InputError
+                                    :message="errors.home_goals_title"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_goals_body">Intro</Label>
+                                <Textarea
+                                    id="home_goals_body"
+                                    name="home_goals_body"
+                                    rows="2"
+                                    :default-value="str('home_goals_body')"
+                                />
+                                <InputError :message="errors.home_goals_body" />
+                            </div>
+                        </section>
+
+                        <RepeaterRows
+                            v-model="goals"
+                            name="home_goals"
+                            label="Team goals"
+                            :max="6"
+                            :errors="errors"
                         />
-                        <InputError :message="errors.home_youtube_url" />
-                    </div>
-                </section>
+                    </TabsContent>
+
+                    <TabsContent value="development" class="mt-6 space-y-8">
+                        <section class="space-y-4">
+                            <h3 class="text-sm font-semibold">
+                                Player development
+                            </h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_development_title"
+                                    >Heading</Label
+                                >
+                                <Input
+                                    id="home_development_title"
+                                    name="home_development_title"
+                                    :default-value="
+                                        str('home_development_title')
+                                    "
+                                />
+                                <InputError
+                                    :message="errors.home_development_title"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_development_body">Intro</Label>
+                                <Textarea
+                                    id="home_development_body"
+                                    name="home_development_body"
+                                    rows="4"
+                                    :default-value="
+                                        str('home_development_body')
+                                    "
+                                />
+                                <p class="text-xs text-muted-foreground">
+                                    Explain the professional coaching model and
+                                    the commitment to every age level.
+                                </p>
+                                <InputError
+                                    :message="errors.home_development_body"
+                                />
+                            </div>
+                        </section>
+
+                        <RepeaterRows
+                            v-model="developmentTiers"
+                            name="home_development_tiers"
+                            label="Age groups"
+                            :max="4"
+                            :errors="errors"
+                            hint="Title is the age group (e.g. 10U – 11U); description is the focus at that level."
+                        />
+
+                        <section class="space-y-4 border-t pt-6">
+                            <h3 class="text-sm font-semibold">
+                                Year-round development
+                            </h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_year_round_title"
+                                    >Heading</Label
+                                >
+                                <Input
+                                    id="home_year_round_title"
+                                    name="home_year_round_title"
+                                    :default-value="
+                                        str('home_year_round_title')
+                                    "
+                                />
+                                <InputError
+                                    :message="errors.home_year_round_title"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_year_round_body">Intro</Label>
+                                <Textarea
+                                    id="home_year_round_body"
+                                    name="home_year_round_body"
+                                    rows="3"
+                                    :default-value="str('home_year_round_body')"
+                                />
+                                <InputError
+                                    :message="errors.home_year_round_body"
+                                />
+                            </div>
+                        </section>
+
+                        <RepeaterRows
+                            v-model="yearRoundItems"
+                            name="home_year_round_items"
+                            label="Winter training includes"
+                            :max="8"
+                            :errors="errors"
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="about" class="mt-6 space-y-8">
+                        <RepeaterRows
+                            v-model="offerings"
+                            name="home_offerings"
+                            label="What we offer"
+                            :max="6"
+                            :errors="errors"
+                            hint="Short cards linking the basics: teams, coaching, camps, facility."
+                        />
+
+                        <section class="space-y-4 border-t pt-6">
+                            <h3 class="text-sm font-semibold">About</h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_about_heading">Heading</Label>
+                                <Input
+                                    id="home_about_heading"
+                                    name="home_about_heading"
+                                    :default-value="str('home_about_heading')"
+                                />
+                                <InputError
+                                    :message="errors.home_about_heading"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_about_body">Body</Label>
+                                <Textarea
+                                    id="home_about_body"
+                                    name="home_about_body"
+                                    rows="6"
+                                    :default-value="str('home_about_body')"
+                                />
+                                <InputError :message="errors.home_about_body" />
+                            </div>
+                            <ImageUpload
+                                name="home_about_image"
+                                label="About image"
+                                remove-name="remove_home_about_image"
+                                :current-url="
+                                    imageUrls.home_about_image ?? null
+                                "
+                                :error="errors.home_about_image"
+                            />
+                            <div class="grid content-start gap-2">
+                                <Label for="home_youtube_url"
+                                    >YouTube video URL</Label
+                                >
+                                <Input
+                                    id="home_youtube_url"
+                                    name="home_youtube_url"
+                                    type="url"
+                                    :default-value="str('home_youtube_url')"
+                                    placeholder="https://www.youtube.com/watch?v=…"
+                                />
+                                <InputError
+                                    :message="errors.home_youtube_url"
+                                />
+                            </div>
+                        </section>
+
+                        <section class="space-y-4 border-t pt-6">
+                            <h3 class="text-sm font-semibold">
+                                Closing call to action
+                            </h3>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_closing_title">Heading</Label>
+                                <Input
+                                    id="home_closing_title"
+                                    name="home_closing_title"
+                                    :default-value="str('home_closing_title')"
+                                />
+                                <InputError
+                                    :message="errors.home_closing_title"
+                                />
+                            </div>
+                            <div class="grid content-start gap-2">
+                                <Label for="home_closing_body">Body</Label>
+                                <Textarea
+                                    id="home_closing_body"
+                                    name="home_closing_body"
+                                    rows="3"
+                                    :default-value="str('home_closing_body')"
+                                />
+                                <InputError
+                                    :message="errors.home_closing_body"
+                                />
+                            </div>
+                        </section>
+                    </TabsContent>
+                </FormTabs>
             </template>
 
             <!-- Facility -->

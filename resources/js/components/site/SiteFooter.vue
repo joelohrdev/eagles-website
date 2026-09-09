@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { Mail, Phone } from '@lucide/vue';
 import { computed } from 'vue';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import FacebookIcon from '@/components/site/icons/FacebookIcon.vue';
 import InstagramIcon from '@/components/site/icons/InstagramIcon.vue';
 import XIcon from '@/components/site/icons/XIcon.vue';
@@ -53,17 +54,21 @@ const copyright = computed(
 
 <template>
     <footer class="bg-navy text-snow">
-        <div class="container-site grid gap-10 py-12 md:grid-cols-3">
-            <div>
-                <Link
-                    :href="home()"
-                    class="font-display text-2xl font-bold tracking-wide uppercase"
-                >
-                    {{ orgName }}
+        <div
+            class="container-site flex flex-col gap-8 py-10 md:flex-row md:items-start md:justify-between md:gap-12"
+        >
+            <div class="max-w-sm">
+                <Link :href="home()" class="inline-flex items-center gap-3">
+                    <AppLogoIcon class="h-9 w-auto" />
+                    <span
+                        class="font-display text-xl font-bold tracking-wide uppercase"
+                    >
+                        {{ orgName }}
+                    </span>
                 </Link>
                 <p
                     v-if="settings?.footer_tagline"
-                    class="mt-3 max-w-xs text-sm text-stone"
+                    class="mt-3 text-sm text-stone"
                 >
                     {{ settings.footer_tagline }}
                 </p>
@@ -110,54 +115,67 @@ const copyright = computed(
                 </div>
             </div>
 
-            <nav v-if="links.length" aria-label="Footer">
-                <h2
-                    class="font-display text-lg font-semibold tracking-wide text-sky uppercase"
-                >
-                    {{ settings?.footer_links_heading ?? 'Explore' }}
-                </h2>
-                <ul class="mt-3 grid grid-cols-2 gap-2 text-sm">
-                    <li v-for="link in links" :key="link.id ?? link.label">
-                        <NavLink
-                            :item="link"
-                            class="text-stone hover:text-white"
-                        />
-                    </li>
-                </ul>
-            </nav>
-
-            <div v-if="settings?.footer_show_contact !== false">
-                <h2
-                    class="font-display text-lg font-semibold tracking-wide text-sky uppercase"
-                >
-                    {{ settings?.footer_contact_heading ?? 'Contact' }}
-                </h2>
-                <ul class="mt-3 space-y-2 text-sm">
-                    <li v-if="site?.phone">
-                        <a
-                            :href="`tel:${site.phone.replace(/[^0-9+]/g, '')}`"
-                            class="inline-flex items-center gap-2 text-stone hover:text-white"
-                        >
-                            <Phone class="size-4" /> {{ site.phone }}
-                        </a>
-                    </li>
-                    <li v-if="site?.email">
-                        <a
-                            :href="`mailto:${site.email}`"
-                            class="inline-flex items-center gap-2 text-stone hover:text-white"
-                        >
-                            <Mail class="size-4" /> {{ site.email }}
-                        </a>
-                    </li>
-                    <li
-                        v-if="
-                            address && settings?.footer_show_address !== false
-                        "
-                        class="text-stone"
+            <div class="flex flex-wrap gap-x-16 gap-y-8">
+                <nav v-if="links.length" aria-label="Footer">
+                    <h2
+                        class="text-xs font-semibold tracking-widest text-sky uppercase"
                     >
-                        {{ address }}
-                    </li>
-                </ul>
+                        {{ settings?.footer_links_heading ?? 'Explore' }}
+                    </h2>
+                    <ul
+                        class="mt-3 grid grid-flow-col gap-x-10 gap-y-2 text-sm"
+                        :style="{
+                            gridTemplateRows: `repeat(${Math.ceil(links.length / 2)}, auto)`,
+                        }"
+                    >
+                        <li v-for="link in links" :key="link.id ?? link.label">
+                            <NavLink
+                                :item="link"
+                                class="text-stone hover:text-white"
+                            />
+                        </li>
+                    </ul>
+                </nav>
+
+                <div
+                    v-if="
+                        settings?.footer_show_contact !== false &&
+                        (site?.phone || site?.email || address)
+                    "
+                >
+                    <h2
+                        class="text-xs font-semibold tracking-widest text-sky uppercase"
+                    >
+                        {{ settings?.footer_contact_heading ?? 'Contact' }}
+                    </h2>
+                    <ul class="mt-3 space-y-2 text-sm">
+                        <li v-if="site?.phone">
+                            <a
+                                :href="`tel:${site.phone.replace(/[^0-9+]/g, '')}`"
+                                class="inline-flex items-center gap-2 text-stone hover:text-white"
+                            >
+                                <Phone class="size-4" /> {{ site.phone }}
+                            </a>
+                        </li>
+                        <li v-if="site?.email">
+                            <a
+                                :href="`mailto:${site.email}`"
+                                class="inline-flex items-center gap-2 text-stone hover:text-white"
+                            >
+                                <Mail class="size-4" /> {{ site.email }}
+                            </a>
+                        </li>
+                        <li
+                            v-if="
+                                address &&
+                                settings?.footer_show_address !== false
+                            "
+                            class="text-stone"
+                        >
+                            {{ address }}
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
         <div class="border-t border-navy-light">

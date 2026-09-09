@@ -19,6 +19,7 @@ function tabbedAdminForms(): array
         'resources/js/pages/admin/products/ProductForm.vue',
         'resources/js/components/admin/coaches/CoachForm.vue',
         'resources/js/components/admin/teams/TeamForm.vue',
+        'resources/js/pages/admin/settings/Edit.vue',
     ];
 }
 

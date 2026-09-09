@@ -6,15 +6,21 @@ export type ErrorTab = {
     value: string;
     /** Exact field names this tab owns. */
     fields?: string[];
-    /** Field-name prefix this tab owns, e.g. "seo" for seo.share_title. */
-    prefix?: string;
+    /** Field-name prefix(es) this tab owns, e.g. "seo" for seo.share_title. */
+    prefix?: string | string[];
 };
+
+function hasPrefix(field: string, prefix: string | string[]): boolean {
+    return (Array.isArray(prefix) ? prefix : [prefix]).some((candidate) =>
+        field.startsWith(candidate),
+    );
+}
 
 function ownerOf(field: string, tabs: ErrorTab[]): ErrorTab | undefined {
     const owner = tabs.find(
         (tab) =>
             tab.fields?.includes(field) ||
-            (tab.prefix !== undefined && field.startsWith(tab.prefix)),
+            (tab.prefix !== undefined && hasPrefix(field, tab.prefix)),
     );
 
     /** A tab that claims no fields is the catch-all for everything else. */

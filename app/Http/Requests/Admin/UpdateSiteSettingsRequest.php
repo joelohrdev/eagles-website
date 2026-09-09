@@ -49,14 +49,32 @@ class UpdateSiteSettingsRequest extends FormRequest
                 'home_hero_image' => $image,
                 'remove_home_hero_image' => ['nullable', 'boolean'],
                 'home_intro' => ['nullable', 'string', 'max:1000'],
-                'home_offerings' => ['nullable', 'array', 'max:6'],
-                'home_offerings.*.title' => ['required', 'string', 'max:80'],
-                'home_offerings.*.description' => ['nullable', 'string', 'max:300'],
+                'home_mission_title' => ['nullable', 'string', 'max:120'],
+                'home_mission_body' => ['nullable', 'string', 'max:2000'],
+                'home_belief' => ['nullable', 'string', 'max:1000'],
+                'home_philosophy_title' => ['nullable', 'string', 'max:120'],
+                'home_philosophy_body' => ['nullable', 'string', 'max:2000'],
+                ...$this->listRules('home_values', 10),
+                'home_goals_title' => ['nullable', 'string', 'max:120'],
+                'home_goals_body' => ['nullable', 'string', 'max:2000'],
+                ...$this->listRules('home_goals', 6),
+                'home_development_title' => ['nullable', 'string', 'max:120'],
+                'home_development_body' => ['nullable', 'string', 'max:2000'],
+                ...$this->listRules('home_development_tiers', 4),
+                'home_year_round_title' => ['nullable', 'string', 'max:120'],
+                'home_year_round_body' => ['nullable', 'string', 'max:2000'],
+                ...$this->listRules('home_year_round_items', 8),
+                'home_whats_new_title' => ['nullable', 'string', 'max:120'],
+                'home_whats_new_body' => ['nullable', 'string', 'max:2000'],
+                ...$this->listRules('home_whats_new_items', 8),
+                ...$this->listRules('home_offerings', 6),
                 'home_about_heading' => ['nullable', 'string', 'max:120'],
                 'home_about_body' => ['nullable', 'string', 'max:5000'],
                 'home_about_image' => $image,
                 'remove_home_about_image' => ['nullable', 'boolean'],
                 'home_youtube_url' => ['nullable', 'url', 'max:255'],
+                'home_closing_title' => ['nullable', 'string', 'max:120'],
+                'home_closing_body' => ['nullable', 'string', 'max:1000'],
             ],
             'facility' => [
                 'facility_heading' => ['required', 'string', 'max:120'],
@@ -86,6 +104,20 @@ class UpdateSiteSettingsRequest extends FormRequest
             ],
             default => [],
         };
+    }
+
+    /**
+     * Rules for a repeatable list of title/description rows.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function listRules(string $key, int $max): array
+    {
+        return [
+            $key => ['nullable', 'array', "max:{$max}"],
+            "{$key}.*.title" => ['required', 'string', 'max:80'],
+            "{$key}.*.description" => ['nullable', 'string', 'max:300'],
+        ];
     }
 
     /**
@@ -125,7 +157,7 @@ class UpdateSiteSettingsRequest extends FormRequest
 
     private function normalize(string $key, mixed $value): mixed
     {
-        if ($key === 'home_offerings' || $key === 'seo_faq') {
+        if (in_array($key, SiteSettings::LIST_KEYS, true)) {
             return array_values(array_map(fn (array $row) => array_map(fn ($v) => filled($v) ? $v : null, $row), $value ?? []));
         }
 

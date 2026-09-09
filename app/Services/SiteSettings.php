@@ -37,24 +37,73 @@ class SiteSettings
         'social_tiktok' => null,
 
         // Home page
-        'home_hero_headline' => 'Elite Travel Baseball. Built on Fundamentals.',
-        'home_hero_subheadline' => 'Competitive teams, professional coaching, and a first-class facility for players who want to take their game to the next level.',
+        'home_hero_headline' => 'Building More Than Ballplayers.',
+        'home_hero_subheadline' => 'Eagles Baseball is a youth travel baseball organization founded in 2023 by Coach John Herrera. We develop athletes physically, mentally, socially, and interpersonally — on the field and beyond it.',
         'home_hero_cta_label' => 'View Tryouts',
         'home_hero_cta_url' => '/tryouts',
         'home_hero_secondary_cta_label' => 'Contact Us',
         'home_hero_secondary_cta_url' => '/contact',
         'home_hero_image' => null,
-        'home_intro' => 'Eagles Baseball Travel is a youth travel baseball organization offering competitive teams, skills camps, and year-round training for players ages 9U–17U.',
+        'home_intro' => 'Eagles Baseball Travel is a year-round youth travel baseball program for players from 10U through high school, built on professional coaching, character, and development.',
+        'home_mission_title' => 'Developing more than baseball players',
+        'home_mission_body' => 'Our mission is to develop athletes physically, mentally, socially, and interpersonally. We prioritize each player\'s growth as an individual, a teammate, and a baseball player over wins, records, and accolades. Wins follow when the development is right.',
+        'home_belief' => 'We are developing more than baseball players — we are developing young men who know how to lead, work hard, serve others, overcome challenges, and succeed both on and off the field.',
+        'home_philosophy_title' => 'Our coaching philosophy',
+        'home_philosophy_body' => 'Our coaches challenge every athlete on and off the field while creating a positive, fun, learning-focused environment. We hold high standards, teach leadership and teamwork, and expect discipline and character from every player who wears the Eagles uniform.',
+        'home_values' => [
+            ['title' => 'Discipline', 'description' => 'Show up prepared, on time, and ready to work — every practice, every game.'],
+            ['title' => 'Leadership', 'description' => 'Set the example for teammates through effort, attitude, and how you treat others.'],
+            ['title' => 'Selflessness', 'description' => 'Put the team first. Celebrate a teammate\'s success like it is your own.'],
+            ['title' => 'Work Ethic', 'description' => 'Development is earned through repetition and effort, not talent alone.'],
+            ['title' => 'Confidence', 'description' => 'Trust your preparation and compete without fear of failure.'],
+            ['title' => 'Teamwork', 'description' => 'Nine players moving together will always beat nine individuals.'],
+            ['title' => 'Character', 'description' => 'Do the right thing when no one is watching, on and off the field.'],
+            ['title' => 'Accountability', 'description' => 'Own your mistakes, learn from them, and hold each other to the standard.'],
+        ],
+        'home_goals_title' => 'Our goals',
+        'home_goals_body' => 'Every Eagles team works toward the same four goals each season.',
+        'home_goals' => [
+            ['title' => 'Building Relationships', 'description' => 'Coaches, players, and families who know, trust, and support one another — relationships that last well beyond a single season.'],
+            ['title' => 'Player & Baseball Skill Development', 'description' => 'Measurable improvement in every player\'s fundamentals, athleticism, and baseball IQ from the first practice to the last game.'],
+            ['title' => 'Team Cohesion & Sportsmanship', 'description' => 'Teams that play for each other, respect opponents and umpires, and represent the Eagles with class win or lose.'],
+            ['title' => 'Positive Camaraderie', 'description' => 'A dugout and a program that players love being part of — fun, encouraging, and focused on growth.'],
+        ],
+        'home_development_title' => 'Our commitment to player development',
+        'home_development_body' => 'Eagles Baseball runs on a professional coaching model. Every team, at every age level, is led by experienced coaches who follow a consistent development plan — we do not concentrate our best instruction on the top teams. A 10U player receives the same quality of coaching and the same commitment to development as a 14U player preparing for high school ball.',
+        'home_development_tiers' => [
+            ['title' => '10U – 11U', 'description' => 'Fundamentals first: throwing, fielding, hitting, and baserunning mechanics, baseball IQ, and the habits of work ethic, character, focus, and hard work.'],
+            ['title' => '12U – 14U', 'description' => 'Increased competition, advanced baseball development, and elite athletic training that prepares players for the high school level.'],
+            ['title' => 'High School', 'description' => 'A continued development path for Eagles players at the high school level — strength, skill, and the competitive reps needed to keep advancing.'],
+        ],
+        'home_year_round_title' => 'Year-round development',
+        'home_year_round_body' => 'The Eagles are not a spring-and-summer organization. Development continues through the winter with structured indoor training so players return to the field ahead of where they left it.',
+        'home_year_round_items' => [
+            ['title' => 'Hitting & Pitching Instruction', 'description' => 'Small-group cage and mound work with Eagles coaches all winter long.'],
+            ['title' => 'Position-Specific Defense', 'description' => 'Infield, outfield, and catching sessions focused on footwork, reads, and reps.'],
+            ['title' => 'Strength, Speed & Agility', 'description' => 'Age-appropriate athletic training that builds strength, quickness, and durability.'],
+            ['title' => 'Baseball IQ', 'description' => 'Situational baseball, game strategy, and the mental side of competing.'],
+        ],
+        'home_whats_new_title' => 'What\'s new for 2026–2027',
+        'home_whats_new_body' => 'Big steps forward for current and prospective Eagles families this season.',
+        'home_whats_new_items' => [
+            ['title' => 'Youth Strength & Conditioning', 'description' => 'Age-appropriate strength programs for our youngest players, built on movement quality and injury prevention.'],
+            ['title' => 'Speed & Agility', 'description' => 'Dedicated speed and agility sessions to build first-step quickness, baserunning speed, and defensive range.'],
+            ['title' => 'New Eagles Baseball Facility — Coming Soon', 'description' => 'A new home for the Eagles with cages, mounds, and turf for year-round training.'],
+            ['title' => 'Dedicated Weight Room for 14U+', 'description' => 'A dedicated weight room and structured lifting program to prepare 14U and older players for high school baseball.'],
+            ['title' => 'High School Eagles Program', 'description' => 'Eagles baseball now continues past 14U with a program built for high school players.'],
+        ],
         'home_offerings' => [
-            ['title' => 'Competitive Teams', 'description' => 'Age-group teams from 9U to 17U competing in top regional tournaments.'],
+            ['title' => 'Competitive Teams', 'description' => 'Age-group teams from 10U through high school competing in top regional tournaments.'],
             ['title' => 'Professional Coaching', 'description' => 'Experienced coaches focused on player development on and off the field.'],
             ['title' => 'Camps & Clinics', 'description' => 'Seasonal skills camps for hitting, pitching, fielding, and catching.'],
             ['title' => 'Training Facility', 'description' => 'Indoor cages, mounds, and turf for year-round development.'],
         ],
-        'home_about_heading' => 'About the Eagles',
-        'home_about_body' => 'Placeholder: tell families who you are, what you stand for, and why players choose the Eagles. This copy is editable in the admin under Site Settings.',
+        'home_about_heading' => 'Meet Coach John Herrera',
+        'home_about_body' => 'Eagles Baseball was founded in 2023 by Coach John Herrera. Placeholder: add Coach John\'s baseball background and why he started the Eagles. This copy is editable in the admin under Site Settings.',
         'home_about_image' => null,
         'home_youtube_url' => null,
+        'home_closing_title' => 'Stepping up to the plate',
+        'home_closing_body' => 'Joining the Eagles means committing to sportsmanship, respect, and integrity — supporting your coaches and teammates and helping create a positive experience for everyone involved. If that sounds like your family, we would love to hear from you.',
 
         // Facility page
         'facility_heading' => 'Our Facility',
@@ -105,7 +154,7 @@ class SiteSettings
      */
     public const array GROUPS = [
         'organization' => ['org_name', 'phone', 'email', 'address_line1', 'address_city', 'address_state', 'address_postal_code', 'geo_latitude', 'geo_longitude', 'service_area', 'founding_year', 'social_facebook', 'social_instagram', 'social_twitter', 'social_youtube', 'social_tiktok'],
-        'home' => ['home_hero_headline', 'home_hero_subheadline', 'home_hero_cta_label', 'home_hero_cta_url', 'home_hero_secondary_cta_label', 'home_hero_secondary_cta_url', 'home_hero_image', 'home_intro', 'home_offerings', 'home_about_heading', 'home_about_body', 'home_about_image', 'home_youtube_url'],
+        'home' => ['home_hero_headline', 'home_hero_subheadline', 'home_hero_cta_label', 'home_hero_cta_url', 'home_hero_secondary_cta_label', 'home_hero_secondary_cta_url', 'home_hero_image', 'home_intro', 'home_mission_title', 'home_mission_body', 'home_belief', 'home_philosophy_title', 'home_philosophy_body', 'home_values', 'home_goals_title', 'home_goals_body', 'home_goals', 'home_development_title', 'home_development_body', 'home_development_tiers', 'home_year_round_title', 'home_year_round_body', 'home_year_round_items', 'home_whats_new_title', 'home_whats_new_body', 'home_whats_new_items', 'home_offerings', 'home_about_heading', 'home_about_body', 'home_about_image', 'home_youtube_url', 'home_closing_title', 'home_closing_body'],
         'facility' => ['facility_heading', 'facility_description', 'facility_address', 'facility_youtube_url'],
         'contact' => ['contact_intro'],
         'pages' => ['page_teams_enabled', 'page_facility_enabled', 'page_coaches_enabled', 'page_camps_enabled', 'page_merch_enabled', 'page_contact_enabled'],
@@ -119,6 +168,13 @@ class SiteSettings
      * @var list<string>
      */
     public const array IMAGE_KEYS = ['home_hero_image', 'home_about_image', 'seo_default_share_image'];
+
+    /**
+     * Keys that hold a list of title/description-style rows.
+     *
+     * @var list<string>
+     */
+    public const array LIST_KEYS = ['home_values', 'home_goals', 'home_development_tiers', 'home_year_round_items', 'home_whats_new_items', 'home_offerings', 'seo_faq'];
 
     /**
      * @return array<string, mixed>

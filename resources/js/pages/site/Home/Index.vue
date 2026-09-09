@@ -18,7 +18,7 @@ import { index as campsIndex, show as campShow } from '@/routes/camps';
 import { index as tryoutsIndex, show as tryoutShow } from '@/routes/tryouts';
 import type { RegistrationState } from '@/types';
 
-type Offering = { title: string; description: string };
+type Item = { title: string; description: string | null };
 type Faq = { question: string; answer: string };
 type HomeTryout = {
     id: number;
@@ -54,11 +54,31 @@ defineProps<{
         home_hero_secondary_cta_url: string | null;
         home_hero_image_url: string | null;
         home_intro: string | null;
-        home_offerings: Offering[];
+        home_mission_title: string | null;
+        home_mission_body: string | null;
+        home_belief: string | null;
+        home_philosophy_title: string | null;
+        home_philosophy_body: string | null;
+        home_values: Item[];
+        home_goals_title: string | null;
+        home_goals_body: string | null;
+        home_goals: Item[];
+        home_development_title: string | null;
+        home_development_body: string | null;
+        home_development_tiers: Item[];
+        home_year_round_title: string | null;
+        home_year_round_body: string | null;
+        home_year_round_items: Item[];
+        home_whats_new_title: string | null;
+        home_whats_new_body: string | null;
+        home_whats_new_items: Item[];
+        home_offerings: Item[];
         home_about_heading: string | null;
         home_about_body: string | null;
         home_about_image_url: string | null;
         home_youtube_url: string | null;
+        home_closing_title: string | null;
+        home_closing_body: string | null;
     };
     faqs: Faq[];
     tryouts: HomeTryout[];
@@ -106,40 +126,239 @@ const openFaq = ref<number | null>(null);
             </Button>
         </PageHero>
 
-        <section v-if="home.home_intro" class="border-b bg-accent/60">
-            <div class="container-site py-8 md:py-10">
-                <p
-                    class="mx-auto max-w-3xl text-center text-lg leading-relaxed text-navy md:text-xl dark:text-snow"
+        <section
+            v-if="home.home_intro || home.home_mission_body"
+            class="border-b bg-accent/60"
+        >
+            <div class="container-site py-12 md:py-16">
+                <div class="mx-auto max-w-3xl text-center">
+                    <p
+                        class="mb-1 text-sm font-semibold tracking-widest text-sky uppercase"
+                    >
+                        Our mission
+                    </p>
+                    <h2
+                        v-if="home.home_mission_title"
+                        class="font-display text-3xl font-bold tracking-wide text-navy uppercase md:text-4xl dark:text-snow"
+                    >
+                        {{ home.home_mission_title }}
+                    </h2>
+                    <p
+                        v-if="home.home_intro"
+                        class="mt-4 text-lg leading-relaxed text-navy md:text-xl dark:text-snow"
+                    >
+                        {{ home.home_intro }}
+                    </p>
+                    <p
+                        v-if="home.home_mission_body"
+                        class="mt-4 leading-relaxed whitespace-pre-line text-muted-foreground"
+                    >
+                        {{ home.home_mission_body }}
+                    </p>
+                </div>
+                <blockquote
+                    v-if="home.home_belief"
+                    class="mx-auto mt-8 max-w-3xl border-l-4 border-sky pl-5 text-left font-display text-xl font-semibold tracking-wide text-navy uppercase md:text-2xl dark:text-snow"
                 >
-                    {{ home.home_intro }}
-                </p>
+                    {{ home.home_belief }}
+                </blockquote>
             </div>
         </section>
 
         <section
-            v-if="home.home_offerings?.length"
+            v-if="home.home_whats_new_items?.length"
+            class="bg-navy text-snow"
+        >
+            <div class="container-site py-12 md:py-16">
+                <div class="mx-auto max-w-2xl text-center">
+                    <p
+                        class="mb-1 text-sm font-semibold tracking-widest text-sky uppercase"
+                    >
+                        New this season
+                    </p>
+                    <h2
+                        class="font-display text-3xl font-bold tracking-wide uppercase md:text-4xl"
+                    >
+                        {{ home.home_whats_new_title ?? "What's new" }}
+                    </h2>
+                    <p v-if="home.home_whats_new_body" class="mt-3 text-stone">
+                        {{ home.home_whats_new_body }}
+                    </p>
+                </div>
+                <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div
+                        v-for="item in home.home_whats_new_items"
+                        :key="item.title"
+                        class="rounded-lg border border-navy-light bg-navy-light/60 p-5"
+                    >
+                        <h3
+                            class="font-display text-2xl font-semibold tracking-wide text-sky uppercase"
+                        >
+                            {{ item.title }}
+                        </h3>
+                        <p
+                            v-if="item.description"
+                            class="mt-2 text-sm text-stone"
+                        >
+                            {{ item.description }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section
+            v-if="home.home_philosophy_body || home.home_values?.length"
             class="container-site py-12 md:py-16"
         >
             <SectionHeading
-                eyebrow="What we offer"
-                title="Built for players who want more"
+                eyebrow="Coaching philosophy"
+                :title="home.home_philosophy_title ?? 'How we coach'"
+                :description="home.home_philosophy_body"
                 align="center"
             />
-            <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div
+                v-if="home.home_values?.length"
+                class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
                 <div
-                    v-for="offering in home.home_offerings"
-                    :key="offering.title"
-                    class="rounded-lg border bg-card p-6 shadow-sm"
+                    v-for="value in home.home_values"
+                    :key="value.title"
+                    class="rounded-lg border bg-card p-5 shadow-sm"
                 >
                     <h3
                         class="font-display text-xl font-semibold tracking-wide uppercase"
                     >
-                        {{ offering.title }}
+                        {{ value.title }}
                     </h3>
-                    <p class="mt-2 text-sm text-muted-foreground">
-                        {{ offering.description }}
+                    <p
+                        v-if="value.description"
+                        class="mt-2 text-sm text-muted-foreground"
+                    >
+                        {{ value.description }}
                     </p>
                 </div>
+            </div>
+        </section>
+
+        <section v-if="home.home_goals?.length" class="border-t bg-muted/40">
+            <div class="container-site py-12 md:py-16">
+                <SectionHeading
+                    eyebrow="Our goals"
+                    :title="home.home_goals_title ?? 'Our goals'"
+                    :description="home.home_goals_body"
+                />
+                <ol class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <li
+                        v-for="(goal, index) in home.home_goals"
+                        :key="goal.title"
+                        class="rounded-lg border bg-card p-6 shadow-sm"
+                    >
+                        <span
+                            class="font-display text-4xl font-bold text-sky"
+                            aria-hidden="true"
+                            >{{ String(index + 1).padStart(2, '0') }}</span
+                        >
+                        <h3
+                            class="mt-2 font-display text-xl font-semibold tracking-wide uppercase"
+                        >
+                            {{ goal.title }}
+                        </h3>
+                        <p
+                            v-if="goal.description"
+                            class="mt-2 text-sm text-muted-foreground"
+                        >
+                            {{ goal.description }}
+                        </p>
+                    </li>
+                </ol>
+            </div>
+        </section>
+
+        <section
+            v-if="
+                home.home_development_body ||
+                home.home_development_tiers?.length
+            "
+            class="container-site py-12 md:py-16"
+        >
+            <div class="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:items-start">
+                <SectionHeading
+                    eyebrow="Player development"
+                    :title="
+                        home.home_development_title ??
+                        'Our commitment to player development'
+                    "
+                    :description="home.home_development_body"
+                />
+                <div
+                    v-if="home.home_development_tiers?.length"
+                    class="divide-y rounded-lg border bg-card shadow-sm"
+                >
+                    <div
+                        v-for="tier in home.home_development_tiers"
+                        :key="tier.title"
+                        class="grid gap-2 p-5 sm:grid-cols-[8rem_1fr] sm:gap-6"
+                    >
+                        <h3
+                            class="font-display text-2xl font-bold tracking-wide text-sky uppercase"
+                        >
+                            {{ tier.title }}
+                        </h3>
+                        <p
+                            v-if="tier.description"
+                            class="text-sm leading-relaxed text-muted-foreground"
+                        >
+                            {{ tier.description }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section
+            v-if="
+                home.home_year_round_body || home.home_year_round_items?.length
+            "
+            class="border-t bg-muted/40"
+        >
+            <div class="container-site py-12 md:py-16">
+                <SectionHeading
+                    eyebrow="Year-round program"
+                    :title="
+                        home.home_year_round_title ?? 'Year-round development'
+                    "
+                    :description="home.home_year_round_body"
+                    align="center"
+                />
+                <ul
+                    v-if="home.home_year_round_items?.length"
+                    class="mx-auto mt-10 grid max-w-4xl gap-4 sm:grid-cols-2"
+                >
+                    <li
+                        v-for="item in home.home_year_round_items"
+                        :key="item.title"
+                        class="flex gap-4 rounded-lg border bg-card p-5 shadow-sm"
+                    >
+                        <span
+                            class="mt-1 size-2.5 shrink-0 rounded-full bg-sky"
+                            aria-hidden="true"
+                        />
+                        <div>
+                            <h3
+                                class="font-display text-xl font-semibold tracking-wide uppercase"
+                            >
+                                {{ item.title }}
+                            </h3>
+                            <p
+                                v-if="item.description"
+                                class="mt-1 text-sm text-muted-foreground"
+                            >
+                                {{ item.description }}
+                            </p>
+                        </div>
+                    </li>
+                </ul>
             </div>
         </section>
 
@@ -263,7 +482,7 @@ const openFaq = ref<number | null>(null);
 
         <section
             v-if="home.home_about_heading || home.home_about_body"
-            class="border-t bg-muted/40"
+            class="border-t"
         >
             <div
                 class="container-site grid items-center gap-10 py-12 md:grid-cols-2 md:py-16"
@@ -308,69 +527,106 @@ const openFaq = ref<number | null>(null);
             </div>
         </section>
 
-        <section v-if="faqs.length" class="container-site py-12 md:py-16">
+        <section
+            v-if="home.home_offerings?.length"
+            class="container-site py-12 md:py-16"
+        >
             <SectionHeading
-                eyebrow="FAQ"
-                title="Common questions"
+                eyebrow="What we offer"
+                title="Built for players who want more"
                 align="center"
             />
-            <div
-                class="mx-auto mt-8 max-w-3xl divide-y rounded-lg border bg-card"
-            >
-                <Collapsible
-                    v-for="(faq, index) in faqs"
-                    :key="index"
-                    :open="openFaq === index"
-                    @update:open="
-                        (open: boolean) => (openFaq = open ? index : null)
-                    "
+            <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                <div
+                    v-for="offering in home.home_offerings"
+                    :key="offering.title"
+                    class="rounded-lg border bg-card p-6 shadow-sm"
                 >
-                    <CollapsibleTrigger
-                        class="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-medium"
+                    <h3
+                        class="font-display text-xl font-semibold tracking-wide uppercase"
                     >
-                        <span>{{ faq.question }}</span>
-                        <ChevronDown
-                            class="size-4 shrink-0 transition-transform"
-                            :class="{ 'rotate-180': openFaq === index }"
-                        />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent
-                        class="px-5 pb-4 text-sm whitespace-pre-line text-muted-foreground"
+                        {{ offering.title }}
+                    </h3>
+                    <p
+                        v-if="offering.description"
+                        class="mt-2 text-sm text-muted-foreground"
                     >
-                        {{ faq.answer }}
-                    </CollapsibleContent>
-                </Collapsible>
+                        {{ offering.description }}
+                    </p>
+                </div>
             </div>
         </section>
 
-        <section class="bg-navy text-snow">
+        <section v-if="faqs.length" class="border-t bg-muted/40">
+            <div class="container-site py-12 md:py-16">
+                <SectionHeading
+                    eyebrow="FAQ"
+                    title="Common questions"
+                    align="center"
+                />
+                <div
+                    class="mx-auto mt-8 max-w-3xl divide-y rounded-lg border bg-card"
+                >
+                    <Collapsible
+                        v-for="(faq, index) in faqs"
+                        :key="index"
+                        :open="openFaq === index"
+                        @update:open="
+                            (open: boolean) => (openFaq = open ? index : null)
+                        "
+                    >
+                        <CollapsibleTrigger
+                            class="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-medium"
+                        >
+                            <span>{{ faq.question }}</span>
+                            <ChevronDown
+                                class="size-4 shrink-0 transition-transform"
+                                :class="{ 'rotate-180': openFaq === index }"
+                            />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent
+                            class="px-5 pb-4 text-sm whitespace-pre-line text-muted-foreground"
+                        >
+                            {{ faq.answer }}
+                        </CollapsibleContent>
+                    </Collapsible>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-sky text-navy">
             <div
-                class="container-site flex flex-col items-center gap-6 py-12 text-center md:flex-row md:justify-between md:text-left"
+                class="container-site flex flex-col items-start gap-6 py-10 md:flex-row md:items-center md:justify-between"
             >
-                <div>
+                <div class="max-w-2xl">
                     <h2
                         class="font-display text-3xl font-bold tracking-wide uppercase"
                     >
-                        Ready to join the Eagles?
+                        {{
+                            home.home_closing_title ??
+                            'Ready to join the Eagles?'
+                        }}
                     </h2>
-                    <p class="mt-2 text-stone">
-                        Questions about teams, tryouts, or camps? We'd love to
-                        hear from you.
+                    <p class="mt-2 text-navy/80">
+                        {{
+                            home.home_closing_body ??
+                            "Questions about teams, tryouts, or camps? We'd love to hear from you."
+                        }}
                     </p>
                     <div
-                        class="mt-3 flex flex-wrap justify-center gap-4 text-sm md:justify-start"
+                        class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium"
                     >
                         <a
                             v-if="site?.phone"
                             :href="`tel:${site.phone.replace(/[^0-9+]/g, '')}`"
-                            class="inline-flex items-center gap-2 hover:text-sky"
+                            class="inline-flex items-center gap-2 hover:underline"
                         >
                             <Phone class="size-4" /> {{ site.phone }}
                         </a>
                         <a
                             v-if="site?.email"
                             :href="`mailto:${site.email}`"
-                            class="inline-flex items-center gap-2 hover:text-sky"
+                            class="inline-flex items-center gap-2 hover:underline"
                         >
                             <Mail class="size-4" /> {{ site.email }}
                         </a>
@@ -379,7 +635,7 @@ const openFaq = ref<number | null>(null);
                 <Button
                     as-child
                     size="lg"
-                    class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                    class="shrink-0 bg-navy font-semibold text-snow hover:bg-navy-light hover:text-white"
                 >
                     <Link :href="contact()">Contact us</Link>
                 </Button>
