@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { Search } from '@lucide/vue';
+import { ChevronRight, Search } from '@lucide/vue';
 import EmptyState from '@/components/admin/EmptyState.vue';
 import Pagination from '@/components/admin/Pagination.vue';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
@@ -18,7 +18,7 @@ import {
 import { formatDateTime, money } from '@/lib/format';
 import { index, show } from '@/routes/admin/orders';
 import type { Paginated } from '@/types';
-import type { Option, Order } from '@/types/merch';
+import type { Option, Order, OrderItem } from '@/types/merch';
 
 defineOptions({
     layout: {
@@ -32,6 +32,11 @@ defineProps<{
     statuses: Option[];
     types: Option[];
 }>();
+
+const MAX_PREVIEW_ITEMS = 3;
+
+const options = (item: OrderItem): string =>
+    [item.size, item.color].filter(Boolean).join(' / ');
 </script>
 
 <template>
@@ -132,6 +137,9 @@ defineProps<{
                         <TableHead>Items</TableHead>
                         <TableHead class="text-right">Total</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead class="w-px"
+                            ><span class="sr-only">View</span></TableHead
+                        >
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -157,13 +165,80 @@ defineProps<{
                                 ? 'Camp registration'
                                 : 'Merch'
                         }}</TableCell>
-                        <TableCell>{{ order.items_count ?? 0 }}</TableCell>
+                        <TableCell class="text-sm">
+                            <div
+                                v-if="
+                                    order.type === 'camp' &&
+                                    order.camp_registration
+                                "
+                            >
+                                <div class="font-medium">
+                                    {{ order.camp_registration.camp.name }}
+                                </div>
+                                <div class="text-xs text-muted-foreground">
+                                    {{
+                                        order.camp_registration
+                                            .player_first_name
+                                    }}
+                                    {{
+                                        order.camp_registration.player_last_name
+                                    }}
+                                </div>
+                            </div>
+                            <ul
+                                v-else-if="order.items?.length"
+                                class="space-y-0.5"
+                            >
+                                <li
+                                    v-for="item in order.items.slice(
+                                        0,
+                                        MAX_PREVIEW_ITEMS,
+                                    )"
+                                    :key="item.id"
+                                >
+                                    <span class="font-medium">{{
+                                        item.description
+                                    }}</span>
+                                    <span
+                                        v-if="options(item)"
+                                        class="text-muted-foreground"
+                                    >
+                                        · {{ options(item) }}</span
+                                    >
+                                    <span
+                                        v-if="item.quantity > 1"
+                                        class="text-muted-foreground"
+                                    >
+                                        ×{{ item.quantity }}</span
+                                    >
+                                </li>
+                                <li
+                                    v-if="
+                                        order.items.length > MAX_PREVIEW_ITEMS
+                                    "
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    +{{
+                                        order.items.length - MAX_PREVIEW_ITEMS
+                                    }}
+                                    more
+                                </li>
+                            </ul>
+                            <span v-else class="text-muted-foreground">—</span>
+                        </TableCell>
                         <TableCell class="text-right font-medium">{{
                             money(order.total)
                         }}</TableCell>
                         <TableCell
                             ><StatusBadge :status="order.status"
                         /></TableCell>
+                        <TableCell>
+                            <Button as-child variant="outline" size="sm">
+                                <Link :href="show(order.id)"
+                                    >View <ChevronRight class="size-4"
+                                /></Link>
+                            </Button>
+                        </TableCell>
                     </TableRow>
                 </TableBody>
             </Table>

@@ -10,7 +10,8 @@ beforeEach(function () {
 });
 
 test('staff can list and filter orders', function () {
-    Order::factory()->paid()->create(['email' => 'alice@example.com']);
+    $paid = Order::factory()->paid()->create(['email' => 'alice@example.com']);
+    OrderItem::factory()->for($paid)->create(['description' => 'Eagles Dri-Fit Tee', 'size' => 'XL', 'color' => 'Navy']);
     Order::factory()->create(['email' => 'bob@example.com']);
 
     $this->actingAs($this->staff)
@@ -20,7 +21,13 @@ test('staff can list and filter orders', function () {
 
     $this->actingAs($this->staff)
         ->get(route('admin.orders.index', ['status' => 'paid']))
-        ->assertInertia(fn ($page) => $page->has('orders.data', 1)->where('orders.data.0.email', 'alice@example.com'));
+        ->assertInertia(fn ($page) => $page
+            ->has('orders.data', 1)
+            ->where('orders.data.0.email', 'alice@example.com')
+            ->has('orders.data.0.items', 1)
+            ->where('orders.data.0.items.0.description', 'Eagles Dri-Fit Tee')
+            ->where('orders.data.0.items.0.size', 'XL')
+        );
 
     $this->actingAs($this->staff)
         ->get(route('admin.orders.index', ['q' => 'bob']))

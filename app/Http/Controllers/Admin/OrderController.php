@@ -26,6 +26,7 @@ class OrderController extends Controller
 
         $orders = Order::query()
             ->withCount('items')
+            ->with(['items:id,order_id,description,size,color,quantity', 'campRegistration:id,order_id,camp_id,player_first_name,player_last_name', 'campRegistration.camp:id,name'])
             ->when($filters['status'], fn (Builder $q, string $status) => $q->where('status', $status))
             ->when($filters['type'], fn (Builder $q, string $type) => $q->where('type', $type))
             ->when($filters['q'], fn (Builder $q, string $term) => $q->where(fn (Builder $inner) => $inner
