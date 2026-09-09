@@ -29,10 +29,10 @@ const props = defineProps<{
 }>();
 
 defineOptions({
-    layout: (page: { props: { order: Order } }) => ({
+    layout: (props: { order: Order }) => ({
         breadcrumbs: [
             { title: 'Orders', href: index() },
-            { title: page.props.order.number, href: show(page.props.order.id) },
+            { title: props.order.number, href: show(props.order.id) },
         ],
     }),
 });
@@ -263,8 +263,9 @@ const statusOptions = props.statuses.filter(
                             {{ order.stripe_payment_intent_id }}
                         </p>
                         <p class="text-xs text-muted-foreground">
-                            Refunds are issued from the Stripe dashboard; mark
-                            the order refunded here afterwards.
+                            Issue refunds from the Stripe dashboard. A full
+                            refund updates this order automatically; after a
+                            partial refund, set the status here yourself.
                         </p>
                     </CardContent>
                 </Card>

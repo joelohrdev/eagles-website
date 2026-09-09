@@ -23,12 +23,12 @@ const props = defineProps<{
 }>();
 
 defineOptions({
-    layout: (page: { props: { product: Product } }) => ({
+    layout: (props: { product: Product }) => ({
         breadcrumbs: [
             { title: 'Products', href: index() },
             {
-                title: page.props.product.name,
-                href: edit(page.props.product.slug),
+                title: props.product.name,
+                href: edit(props.product.slug),
             },
         ],
     }),
