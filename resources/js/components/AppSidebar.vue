@@ -106,7 +106,7 @@ const footerNavItems: NavItem[] = [
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="contentNavItems" label="Content" />
+            <NavMain :items="contentNavItems" label="" />
             <NavMain
                 v-if="adminNavItems.length"
                 :items="adminNavItems"
