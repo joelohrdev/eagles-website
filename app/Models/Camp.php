@@ -32,6 +32,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $image_path
  * @property string|null $youtube_url
  * @property bool $is_published
+ * @property int|null $active_registrations_count
  */
 #[Fillable(['name', 'slug', 'description', 'location', 'age_range', 'starts_at', 'ends_at', 'price', 'capacity', 'registration_opens_at', 'registration_closes_at', 'image_path', 'youtube_url', 'is_published'])]
 class Camp extends Model
@@ -93,10 +94,12 @@ class Camp extends Model
 
     /**
      * Paid registrations plus unexpired pending ones count against capacity.
+     *
+     * @return HasMany<CampRegistration, $this>
      */
-    public function activeRegistrationCount(): int
+    public function activeRegistrations(): HasMany
     {
-        return $this->registrations()->countsAgainstCapacity()->count();
+        return $this->registrations()->countsAgainstCapacity();
     }
 
     /**

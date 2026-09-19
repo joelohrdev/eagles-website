@@ -1,8 +1,11 @@
 <?php
 
 use App\Models\Camp;
+use App\Models\CampRegistration;
 use App\Models\Tryout;
+use App\Models\TryoutRegistration;
 use App\Services\SiteSettings;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('home page renders with settings, featured content, and seo', function () {
@@ -68,4 +71,30 @@ test('home page renders edited program sections from site settings', function ()
             ->where('home.home_whats_new_items.0.title', 'Weight Room')
             ->has('home.home_goals', 0)
         );
+});
+
+test('home page counts registrations without a query per card', function () {
+    $camp = Camp::factory()->create(['capacity' => 10, 'starts_at' => now()->addDay()]);
+    CampRegistration::factory()->create(['camp_id' => $camp->id]);
+    CampRegistration::factory()->pending()->create(['camp_id' => $camp->id]);
+    CampRegistration::factory()->cancelled()->create(['camp_id' => $camp->id]);
+    Camp::factory()->count(2)->create(['capacity' => 10, 'starts_at' => now()->addMonth()]);
+
+    $tryout = Tryout::factory()->create(['capacity' => 5, 'event_at' => now()->addDay()]);
+    TryoutRegistration::factory()->count(2)->create(['tryout_id' => $tryout->id]);
+    Tryout::factory()->count(2)->create(['capacity' => 5, 'event_at' => now()->addMonth()]);
+
+    DB::enableQueryLog();
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('camps.0.spots_remaining', 8)
+            ->where('tryouts.0.spots_remaining', 3)
+        );
+
+    $registrationCounts = collect(DB::getQueryLog())
+        ->filter(fn (array $query) => preg_match('/^select count\(\*\) as "aggregate" from "(camp|tryout)_registrations"/', $query['query']));
+
+    expect($registrationCounts)->toBeEmpty();
 });

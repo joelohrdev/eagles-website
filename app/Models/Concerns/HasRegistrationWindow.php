@@ -4,6 +4,8 @@ namespace App\Models\Concerns;
 
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Shared registration-window logic for tryouts and camps.
@@ -60,11 +62,22 @@ trait HasRegistrationWindow
     }
 
     /**
+     * Registrations that count against capacity. Load the count up front with
+     * `withCount('activeRegistrations')` when listing several records.
+     *
+     * @return HasMany<Model, $this>
+     */
+    public function activeRegistrations(): HasMany
+    {
+        return $this->registrations();
+    }
+
+    /**
      * Number of registrations that count against capacity.
      */
     public function activeRegistrationCount(): int
     {
-        return $this->registrations()->count();
+        return $this->active_registrations_count ?? $this->activeRegistrations()->count();
     }
 
     /**

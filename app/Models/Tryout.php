@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $capacity
  * @property string|null $image_path
  * @property bool $is_published
+ * @property int|null $active_registrations_count
  */
 #[Fillable(['title', 'slug', 'division', 'location', 'description', 'event_at', 'registration_opens_at', 'registration_closes_at', 'capacity', 'image_path', 'is_published'])]
 class Tryout extends Model

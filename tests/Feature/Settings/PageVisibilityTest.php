@@ -110,6 +110,14 @@ test('the home page camps section goes with the camps page', function () {
     $this->get(route('home'))->assertInertia(fn ($page) => $page->has('camps', 0));
 });
 
+test('the home page contact buttons go with the contact page', function () {
+    $this->get(route('home'))->assertInertia(fn ($page) => $page->where('contactEnabled', true));
+
+    disablePage('contact');
+
+    $this->get(route('home'))->assertInertia(fn ($page) => $page->where('contactEnabled', false));
+});
+
 test('switched off pages are dropped from the sitemap and llms.txt', function () {
     disablePage('merch');
     Product::factory()->create();

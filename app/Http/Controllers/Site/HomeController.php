@@ -41,7 +41,7 @@ class HomeController extends Controller
 
         /** The whole section — cards and the "All tryouts" button — stays off until one is open. */
         $tryouts = $this->tryoutAvailability->isOpen()
-            ? Tryout::query()->published()->upcoming()->ordered()->take(3)->get()
+            ? Tryout::query()->published()->upcoming()->ordered()->withCount('activeRegistrations')->take(3)->get()
             : collect();
 
         $tryouts = $tryouts
@@ -58,7 +58,7 @@ class HomeController extends Controller
 
         /** The camps section — cards and the "All camps" button — goes with the page. */
         $camps = $this->pages->isEnabled('camps')
-            ? Camp::query()->published()->upcoming()->ordered()->take(3)->get()
+            ? Camp::query()->published()->upcoming()->ordered()->withCount('activeRegistrations')->take(3)->get()
             : collect();
 
         $camps = $camps
@@ -85,6 +85,7 @@ class HomeController extends Controller
             'faqs' => $faqs,
             'tryouts' => $tryouts,
             'camps' => $camps,
+            'contactEnabled' => $this->pages->isEnabled('contact'),
             'seo' => $this->seo->forRoute('home', [
                 'title' => 'Youth Travel Baseball Teams, Tryouts & Camps',
                 'description' => $home['home_intro'] ?? null,

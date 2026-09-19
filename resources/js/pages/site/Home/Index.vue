@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { CalendarDays, ChevronDown, Mail, Phone, Trophy } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import NavLink from '@/components/site/NavLink.vue';
 import PageHero from '@/components/site/PageHero.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
 import SectionHeading from '@/components/site/SectionHeading.vue';
@@ -16,7 +17,7 @@ import { formatDate, formatDateTime, money } from '@/lib/format';
 import { contact } from '@/routes';
 import { index as campsIndex, show as campShow } from '@/routes/camps';
 import { index as tryoutsIndex, show as tryoutShow } from '@/routes/tryouts';
-import type { RegistrationState } from '@/types';
+import type { NavigationLink, RegistrationState } from '@/types';
 
 type Item = { title: string; description: string | null };
 type Faq = { question: string; answer: string };
@@ -44,7 +45,7 @@ type HomeCamp = {
     spots_remaining: number | null;
 };
 
-defineProps<{
+const props = defineProps<{
     home: {
         home_hero_headline: string;
         home_hero_subheadline: string | null;
@@ -83,12 +84,40 @@ defineProps<{
     faqs: Faq[];
     tryouts: HomeTryout[];
     camps: HomeCamp[];
+    contactEnabled: boolean;
 }>();
 
 const page = usePage();
 const site = computed(() => page.props.site);
 
 const openFaq = ref<number | null>(null);
+
+function heroCta(
+    label: string | null,
+    href: string | null,
+): NavigationLink | null {
+    if (!label || !href) {
+        return null;
+    }
+
+    return {
+        id: null,
+        label,
+        href,
+        external: !href.startsWith('/'),
+        new_tab: false,
+    };
+}
+
+const primaryCta = computed(() =>
+    heroCta(props.home.home_hero_cta_label, props.home.home_hero_cta_url),
+);
+const secondaryCta = computed(() =>
+    heroCta(
+        props.home.home_hero_secondary_cta_label,
+        props.home.home_hero_secondary_cta_url,
+    ),
+);
 </script>
 
 <template>
@@ -101,28 +130,21 @@ const openFaq = ref<number | null>(null);
             size="large"
         >
             <Button
-                v-if="home.home_hero_cta_label && home.home_hero_cta_url"
+                v-if="primaryCta"
                 as-child
                 size="lg"
                 class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
             >
-                <Link :href="home.home_hero_cta_url">{{
-                    home.home_hero_cta_label
-                }}</Link>
+                <NavLink :item="primaryCta" />
             </Button>
             <Button
-                v-if="
-                    home.home_hero_secondary_cta_label &&
-                    home.home_hero_secondary_cta_url
-                "
+                v-if="secondaryCta"
                 as-child
                 size="lg"
                 variant="outline"
                 class="border-snow/40 bg-transparent text-snow hover:bg-snow/10 hover:text-white"
             >
-                <Link :href="home.home_hero_secondary_cta_url">{{
-                    home.home_hero_secondary_cta_label
-                }}</Link>
+                <NavLink :item="secondaryCta" />
             </Button>
         </PageHero>
 
@@ -498,6 +520,7 @@ const openFaq = ref<number | null>(null);
                         {{ home.home_about_body }}
                     </p>
                     <Button
+                        v-if="contactEnabled"
                         as-child
                         class="mt-6 bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
                     >
@@ -633,6 +656,7 @@ const openFaq = ref<number | null>(null);
                     </div>
                 </div>
                 <Button
+                    v-if="contactEnabled"
                     as-child
                     size="lg"
                     class="shrink-0 bg-navy font-semibold text-snow hover:bg-navy-light hover:text-white"

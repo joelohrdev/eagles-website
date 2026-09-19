@@ -43,9 +43,9 @@ class UpdateSiteSettingsRequest extends FormRequest
                 'home_hero_headline' => ['required', 'string', 'max:160'],
                 'home_hero_subheadline' => ['nullable', 'string', 'max:500'],
                 'home_hero_cta_label' => ['nullable', 'string', 'max:60'],
-                'home_hero_cta_url' => ['nullable', 'string', 'max:255'],
+                'home_hero_cta_url' => ['nullable', 'string', 'max:255', 'regex:#^(https?://|/)#i'],
                 'home_hero_secondary_cta_label' => ['nullable', 'string', 'max:60'],
-                'home_hero_secondary_cta_url' => ['nullable', 'string', 'max:255'],
+                'home_hero_secondary_cta_url' => ['nullable', 'string', 'max:255', 'regex:#^(https?://|/)#i'],
                 'home_hero_image' => $image,
                 'remove_home_hero_image' => ['nullable', 'boolean'],
                 'home_intro' => ['nullable', 'string', 'max:1000'],
@@ -127,6 +127,8 @@ class UpdateSiteSettingsRequest extends FormRequest
     {
         return [
             'seo_title_template.regex' => 'The title template must contain %s where the page title goes.',
+            'home_hero_cta_url.regex' => 'Enter a full URL (https://…) or a site path (/tryouts).',
+            'home_hero_secondary_cta_url.regex' => 'Enter a full URL (https://…) or a site path (/tryouts).',
         ];
     }
 

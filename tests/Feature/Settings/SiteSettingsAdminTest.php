@@ -99,6 +99,16 @@ test('home settings validate offering rows', function () {
         ->assertSessionHasErrors(['home_offerings.0.title', 'home_values.0.description', 'home_development_tiers']);
 });
 
+test('home hero calls to action must be a site path or a web url', function () {
+    $this->actingAs(User::factory()->admin()->create())
+        ->put(route('admin.settings.update', 'home'), [
+            'home_hero_headline' => 'x',
+            'home_hero_cta_url' => 'javascript:alert(1)',
+            'home_hero_secondary_cta_url' => 'tryouts',
+        ])
+        ->assertSessionHasErrors(['home_hero_cta_url', 'home_hero_secondary_cta_url']);
+});
+
 test('admin can remove a settings image', function () {
     Storage::fake('public');
     Storage::disk('public')->put('settings/old.webp', 'x');
