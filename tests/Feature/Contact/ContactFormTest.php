@@ -22,7 +22,7 @@ test('a visitor can send a message and the org is emailed', function () {
     $response = $this->post(route('contact.store'), [
         'name' => 'Pat Parent',
         'email' => 'pat@example.com',
-        'phone' => '555-1234',
+        'phone' => '555-123-4567',
         'subject' => '12U tryouts',
         'message' => 'When are tryouts?',
     ]);
@@ -49,6 +49,32 @@ test('contact form validates required fields', function () {
 
     expect(ContactSubmission::count())->toBe(0);
 });
+
+test('contact phone numbers are stored as 999-999-9999', function (string $typed) {
+    Mail::fake();
+
+    $this->post(route('contact.store'), [
+        'name' => 'Pat Parent',
+        'email' => 'pat@example.com',
+        'phone' => $typed,
+        'message' => 'When are tryouts?',
+    ])->assertSessionHasNoErrors();
+
+    expect(ContactSubmission::query()->value('phone'))->toBe('555-123-4567');
+})->with(['555-123-4567', '(555) 123-4567', '555.123.4567', '5551234567', '+1 555 123 4567']);
+
+test('contact phone numbers must have ten digits', function (string $typed) {
+    $this->from(route('contact'))
+        ->post(route('contact.store'), [
+            'name' => 'Pat Parent',
+            'email' => 'pat@example.com',
+            'phone' => $typed,
+            'message' => 'When are tryouts?',
+        ])
+        ->assertSessionHasErrors('phone');
+
+    expect(ContactSubmission::count())->toBe(0);
+})->with(['555-1234', '555-123-45678', 'call me']);
 
 test('honeypot submissions are rejected', function () {
     Mail::fake();

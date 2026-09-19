@@ -176,3 +176,29 @@ test('mark order paid transitions a camp registration without a webhook', functi
 
     expect(CampRegistration::query()->firstOrFail()->status)->toBe(RegistrationStatus::Paid);
 });
+
+test('camp registration phones are stored as 999-999-9999', function () {
+    Mail::fake();
+    $camp = Camp::factory()->free()->create();
+
+    $this->post(route('camps.register.store', $camp), validCampRegistration([
+        'phone' => '(630) 555-0100',
+        'emergency_contact_phone' => '+1 630.555.0101',
+    ]))->assertSessionHasNoErrors();
+
+    $registration = CampRegistration::query()->firstOrFail();
+
+    expect($registration->phone)->toBe('630-555-0100')
+        ->and($registration->emergency_contact_phone)->toBe('630-555-0101');
+});
+
+test('camp registration phones must have ten digits', function () {
+    $camp = Camp::factory()->free()->create();
+
+    $this->post(route('camps.register.store', $camp), validCampRegistration([
+        'phone' => '555-0100',
+        'emergency_contact_phone' => 'n/a',
+    ]))->assertSessionHasErrors(['phone', 'emergency_contact_phone']);
+
+    expect(CampRegistration::count())->toBe(0);
+});

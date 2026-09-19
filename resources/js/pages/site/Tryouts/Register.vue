@@ -5,6 +5,7 @@ import TryoutRegistrationController from '@/actions/App/Http/Controllers/Site/Tr
 import DateTimePicker from '@/components/DateTimePicker.vue';
 import InputError from '@/components/InputError.vue';
 import PageHero from '@/components/site/PageHero.vue';
+import PhoneInput from '@/components/site/PhoneInput.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -219,12 +220,11 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                         </div>
                         <div class="grid content-start gap-2">
                             <Label for="phone">Phone</Label>
-                            <Input
+                            <PhoneInput
                                 id="phone"
                                 name="phone"
-                                type="tel"
                                 required
-                                autocomplete="tel"
+                                autocomplete="tel-national"
                             />
                             <InputError :message="errors.phone" />
                         </div>

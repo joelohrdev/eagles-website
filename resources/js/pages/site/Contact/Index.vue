@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import ContactController from '@/actions/App/Http/Controllers/Site/ContactController';
 import InputError from '@/components/InputError.vue';
 import PageHero from '@/components/site/PageHero.vue';
+import PhoneInput from '@/components/site/PhoneInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -112,12 +113,10 @@ const address = computed(() =>
                                     >(optional)</span
                                 ></Label
                             >
-                            <Input
+                            <PhoneInput
                                 id="phone"
                                 name="phone"
-                                type="tel"
-                                autocomplete="tel"
-                                placeholder="(555) 555-5555"
+                                autocomplete="tel-national"
                             />
                             <InputError :message="errors.phone" />
                         </div>

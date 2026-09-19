@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarDays, Lock, MapPin } from '@lucide/vue';
 import CampRegistrationController from '@/actions/App/Http/Controllers/Site/CampRegistrationController';
 import DateTimePicker from '@/components/DateTimePicker.vue';
 import InputError from '@/components/InputError.vue';
+import PhoneInput from '@/components/site/PhoneInput.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,12 +187,11 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                         </div>
                         <div class="grid content-start gap-2">
                             <Label for="phone">Phone</Label>
-                            <Input
+                            <PhoneInput
                                 id="phone"
                                 name="phone"
-                                type="tel"
                                 required
-                                autocomplete="tel"
+                                autocomplete="tel-national"
                             />
                             <InputError :message="errors.phone" />
                         </div>
@@ -222,10 +222,9 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                             <Label for="emergency_contact_phone"
                                 >Emergency contact phone</Label
                             >
-                            <Input
+                            <PhoneInput
                                 id="emergency_contact_phone"
                                 name="emergency_contact_phone"
-                                type="tel"
                                 required
                             />
                             <InputError

@@ -92,3 +92,18 @@ export function toDateInput(value: string | null | undefined): string {
 
     return value.slice(0, 10);
 }
+
+/** Format a US phone number as it is typed, e.g. "(555) 123 4567" → "555-123-4567". */
+export function formatPhone(value: string): string {
+    let digits = value.replace(/\D/g, '');
+
+    if (digits.length === 11 && digits.startsWith('1')) {
+        digits = digits.slice(1);
+    }
+
+    digits = digits.slice(0, 10);
+
+    return [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6)]
+        .filter(Boolean)
+        .join('-');
+}

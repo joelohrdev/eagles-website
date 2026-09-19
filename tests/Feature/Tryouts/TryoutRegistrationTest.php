@@ -130,3 +130,22 @@ test('the honeypot silently rejects bot submissions', function () {
     expect(TryoutRegistration::count())->toBe(0);
     Mail::assertNothingQueued();
 });
+
+test('tryout registration phones are stored as 999-999-9999', function () {
+    Mail::fake();
+    $tryout = Tryout::factory()->create();
+
+    $this->post(route('tryouts.register.store', $tryout), validRegistration(['phone' => '(630) 555-0100']))
+        ->assertSessionHasNoErrors();
+
+    expect(TryoutRegistration::query()->value('phone'))->toBe('630-555-0100');
+});
+
+test('tryout registration phones must have ten digits', function () {
+    $tryout = Tryout::factory()->create();
+
+    $this->post(route('tryouts.register.store', $tryout), validRegistration(['phone' => '555-0100']))
+        ->assertSessionHasErrors('phone');
+
+    expect(TryoutRegistration::count())->toBe(0);
+});

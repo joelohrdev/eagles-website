@@ -3,11 +3,14 @@
 namespace App\Http\Requests\Site;
 
 use App\Enums\Fulfillment;
+use App\Http\Requests\Concerns\NormalizesPhoneNumbers;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreCheckoutRequest extends FormRequest
 {
+    use NormalizesPhoneNumbers;
+
     public function authorize(): bool
     {
         return true;
@@ -21,7 +24,7 @@ class StoreCheckoutRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ['nullable', 'string', $this->phoneRule()],
             'fulfillment' => ['required', Rule::enum(Fulfillment::class)],
             'shipping_address_line1' => ['nullable', 'required_if:fulfillment,shipping', 'string', 'max:255'],
             'shipping_address_line2' => ['nullable', 'string', 'max:255'],
@@ -30,6 +33,14 @@ class StoreCheckoutRequest extends FormRequest
             'shipping_postal_code' => ['nullable', 'required_if:fulfillment,shipping', 'string', 'max:10'],
             'website' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return $this->phoneMessages('phone');
     }
 
     /**
@@ -48,5 +59,10 @@ class StoreCheckoutRequest extends FormRequest
     public function isSpam(): bool
     {
         return filled($this->input('website'));
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->normalizePhoneNumbers('phone');
     }
 }

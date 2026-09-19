@@ -4,6 +4,7 @@ import { ChevronLeft, Lock } from '@lucide/vue';
 import { ref } from 'vue';
 import CheckoutController from '@/actions/App/Http/Controllers/Site/CheckoutController';
 import InputError from '@/components/InputError.vue';
+import PhoneInput from '@/components/site/PhoneInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -91,11 +92,10 @@ const fulfillment = ref<string>(props.fulfillmentOptions[0]?.value ?? 'pickup');
                                     >(optional)</span
                                 ></Label
                             >
-                            <Input
+                            <PhoneInput
                                 id="phone"
                                 name="phone"
-                                type="tel"
-                                autocomplete="tel"
+                                autocomplete="tel-national"
                             />
                             <InputError :message="errors.phone" />
                         </div>

@@ -194,3 +194,23 @@ test('webhook rejects invalid signatures', function () {
     $this->postJson(route('stripe.webhook'), ['type' => 'checkout.session.completed'], ['Stripe-Signature' => 'nope'])
         ->assertStatus(400);
 });
+
+test('checkout phones are stored as 999-999-9999', function () {
+    $variant = ProductVariant::factory()->create();
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('checkout.store'), checkoutPayload(['phone' => '(630) 555-0100']))
+        ->assertSessionHasNoErrors();
+
+    expect(Order::query()->value('phone'))->toBe('630-555-0100');
+});
+
+test('checkout phones must have ten digits', function () {
+    $variant = ProductVariant::factory()->create();
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('checkout.store'), checkoutPayload(['phone' => '555-0100']))
+        ->assertSessionHasErrors('phone');
+
+    expect(Order::count())->toBe(0);
+});
