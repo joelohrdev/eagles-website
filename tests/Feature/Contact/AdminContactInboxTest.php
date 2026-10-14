@@ -64,6 +64,17 @@ test('a submission can be toggled unread and read', function () {
     expect($submission->fresh()->read_at)->not->toBeNull();
 });
 
+test('marking a message unread from its page leaves it unread', function () {
+    $submission = ContactSubmission::factory()->read()->create();
+
+    $this->actingAs(User::factory()->staff()->create())
+        ->from(route('admin.contact-submissions.show', $submission))
+        ->patch(route('admin.contact-submissions.update', $submission), ['read' => 0])
+        ->assertRedirect(route('admin.contact-submissions.index'));
+
+    expect($submission->fresh()->read_at)->toBeNull();
+});
+
 test('a submission can be deleted', function () {
     $submission = ContactSubmission::factory()->create();
 

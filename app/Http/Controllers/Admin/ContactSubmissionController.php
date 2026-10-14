@@ -46,7 +46,8 @@ class ContactSubmissionController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $request->boolean('read') ? __('Marked as read.') : __('Marked as unread.')]);
 
-        return back();
+        /** Going back to the message would mark it read again on view, so an unread message returns to the inbox. */
+        return $request->boolean('read') ? back() : to_route('admin.contact-submissions.index');
     }
 
     public function destroy(ContactSubmission $contactSubmission): RedirectResponse
