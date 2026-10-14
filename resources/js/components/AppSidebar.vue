@@ -50,7 +50,7 @@ import type { NavItem } from '@/types';
 const page = usePage();
 const isAdmin = computed(() => page.props.auth.isAdmin);
 
-const contentNavItems: NavItem[] = [
+const contentNavItems = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid, exact: true },
     { title: 'Teams', href: teamsIndex(), icon: Shield },
     { title: 'Coaches', href: coachesIndex(), icon: Users },
@@ -59,9 +59,14 @@ const contentNavItems: NavItem[] = [
     { title: 'Facility Photos', href: facilityIndex(), icon: Building2 },
     { title: 'Products', href: productsIndex(), icon: Package },
     { title: 'Orders', href: ordersIndex(), icon: Receipt },
-    { title: 'Contact Inbox', href: contactIndex(), icon: Inbox },
+    {
+        title: 'Contact Inbox',
+        href: contactIndex(),
+        icon: Inbox,
+        badge: page.props.unreadContactCount,
+    },
     { title: 'SEO & Sharing', href: seoIndex(), icon: Search },
-];
+]);
 
 const adminNavItems = computed<NavItem[]>(() =>
     isAdmin.value

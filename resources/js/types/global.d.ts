@@ -22,6 +22,8 @@ declare module '@inertiajs/core' {
             site: SiteInfo;
             navigation: NavigationProps;
             cartCount: number;
+            /** Unread contact messages; always 0 for guests. */
+            unreadContactCount: number;
             /** False while no tryout is open for registration — hide every tryout link. */
             tryoutsOpen: boolean;
             seo?: SeoProps;

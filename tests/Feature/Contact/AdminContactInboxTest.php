@@ -26,6 +26,22 @@ test('staff can list submissions and filter unread', function () {
         ->assertInertia(fn (Assert $page) => $page->has('submissions.data', 2)->where('filter', 'unread'));
 });
 
+test('staff see the unread message count on every admin page', function () {
+    ContactSubmission::factory()->count(2)->create();
+    ContactSubmission::factory()->read()->create();
+
+    $this->actingAs(User::factory()->staff()->create())
+        ->get(route('admin.dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('unreadContactCount', 2));
+});
+
+test('the unread message count is hidden from guests', function () {
+    ContactSubmission::factory()->create();
+
+    $this->get(route('home'))
+        ->assertInertia(fn (Assert $page) => $page->where('unreadContactCount', 0));
+});
+
 test('viewing a submission marks it read', function () {
     $submission = ContactSubmission::factory()->create();
 

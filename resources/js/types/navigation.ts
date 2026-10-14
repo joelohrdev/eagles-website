@@ -13,4 +13,6 @@ export type NavItem = {
     isActive?: boolean;
     /** Highlight only on an exact URL match (for parent routes like the dashboard). */
     exact?: boolean;
+    /** A count shown beside the title; hidden when zero. */
+    badge?: number;
 };

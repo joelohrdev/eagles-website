@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ContactSubmission;
 use App\Services\Navigation;
 use App\Services\SiteSettings;
 use App\Services\TryoutAvailability;
@@ -60,6 +61,8 @@ class HandleInertiaRequests extends Middleware
             'navigation' => fn () => $this->navigation->forFrontend(),
             'tryoutsOpen' => fn (): bool => $this->tryouts->isOpen(),
             'cartCount' => fn () => (int) array_sum($request->session()->get('cart', [])),
+            /** Badge on the sidebar's Contact Inbox; guests never see the inbox, so they skip the query. */
+            'unreadContactCount' => fn (): int => $user ? ContactSubmission::query()->unread()->count() : 0,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
