@@ -178,6 +178,10 @@
     * {
         @apply border-border outline-ring/50;
     }
+    /* Reserve the scrollbar's space so content doesn't shift between short and long pages. */
+    html {
+        scrollbar-gutter: stable;
+    }
     body {
         @apply bg-background text-foreground;
     }
