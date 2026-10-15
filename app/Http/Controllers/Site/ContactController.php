@@ -21,7 +21,7 @@ class ContactController extends Controller
 
     public function create(Request $request): Response
     {
-        $org = $this->settings->only(['org_name', 'phone', 'email', 'address_line1', 'address_city', 'address_state', 'address_postal_code']);
+        $org = $this->settings->only(['org_name', 'phone', 'email']);
         $intro = $this->settings->get('contact_intro');
 
         return Inertia::render('site/Contact/Index', [

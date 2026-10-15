@@ -17,10 +17,6 @@ defineProps<{
         org_name: string;
         phone: string | null;
         email: string | null;
-        address_line1: string | null;
-        address_city: string | null;
-        address_state: string | null;
-        address_postal_code: string | null;
     };
     sent: boolean;
 }>();
