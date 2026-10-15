@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Form, Link } from '@inertiajs/vue3';
-import { CheckCircle2, Mail, MapPin, Phone } from '@lucide/vue';
-import { computed } from 'vue';
+import { CheckCircle2, Mail, Phone } from '@lucide/vue';
 import ContactController from '@/actions/App/Http/Controllers/Site/ContactController';
 import InputError from '@/components/InputError.vue';
 import PageHero from '@/components/site/PageHero.vue';
@@ -12,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { contact } from '@/routes';
 
-const props = defineProps<{
+defineProps<{
     intro: string | null;
     org: {
         org_name: string;
@@ -25,18 +24,6 @@ const props = defineProps<{
     };
     sent: boolean;
 }>();
-
-const address = computed(() =>
-    [
-        props.org.address_line1,
-        [props.org.address_city, props.org.address_state]
-            .filter(Boolean)
-            .join(', '),
-        props.org.address_postal_code,
-    ]
-        .filter(Boolean)
-        .join(' '),
-);
 </script>
 
 <template>
