@@ -198,17 +198,7 @@ const address = computed(() =>
                                 >
                             </div>
                         </li>
-                        <li v-if="address" class="flex items-start gap-3">
-                            <MapPin class="mt-0.5 size-5 shrink-0 text-sky" />
-                            <div>
-                                <p class="font-medium">Location</p>
-                                <p class="text-stone">{{ address }}</p>
-                            </div>
-                        </li>
                     </ul>
-                    <p class="mt-6 text-xs text-stone">
-                        We typically respond within one business day.
-                    </p>
                 </div>
             </aside>
         </section>
