@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ImagePlus, Trash2 } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { ImagePlus, Trash2, Upload } from '@lucide/vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import { Dropzone } from '@/components/ui/dropzone';
 import { Label } from '@/components/ui/label';
 
 /**
- * File input with live preview for use inside an Inertia <Form>.
- * Submits the file under `name`; when an existing image is removed it
- * submits `<removeName>=1` so the server can delete it.
+ * Drag-and-drop image field with live preview for use inside an Inertia
+ * <Form>. Submits the file under `name`; when an existing image is removed
+ * it submits `<removeName>=1` so the server can delete it.
  */
 const props = withDefaults(
     defineProps<{
@@ -30,17 +31,19 @@ const props = withDefaults(
     },
 );
 
-const input = ref<HTMLInputElement | null>(null);
+const dropzone = ref<InstanceType<typeof Dropzone> | null>(null);
 const previewUrl = ref<string | null>(props.currentUrl);
 const removed = ref(false);
 
 watch(
     () => props.currentUrl,
     (url) => {
-        previewUrl.value = url;
+        setPreview(url);
         removed.value = false;
     },
 );
+
+onBeforeUnmount(() => setPreview(null));
 
 const aspectClass = computed(
     () =>
@@ -51,23 +54,28 @@ const aspectClass = computed(
         })[props.aspect],
 );
 
-function onChange(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
+function setPreview(url: string | null) {
+    if (previewUrl.value?.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl.value);
+    }
+
+    previewUrl.value = url;
+}
+
+function onSelect(files: File[]) {
+    const file = files[0];
 
     if (!file) {
         return;
     }
 
     removed.value = false;
-    previewUrl.value = URL.createObjectURL(file);
+    setPreview(URL.createObjectURL(file));
 }
 
 function clear() {
-    if (input.value) {
-        input.value.value = '';
-    }
-
-    previewUrl.value = null;
+    dropzone.value?.clear();
+    setPreview(null);
     removed.value = props.currentUrl !== null;
 }
 </script>
@@ -75,56 +83,74 @@ function clear() {
 <template>
     <div class="grid content-start gap-2">
         <Label :for="name">{{ label }}</Label>
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
-            <div
-                class="relative w-full max-w-xs overflow-hidden rounded-md border bg-muted"
-                :class="aspectClass"
-            >
-                <img
-                    v-if="previewUrl"
-                    :src="previewUrl"
-                    alt=""
-                    class="size-full object-cover"
-                />
-                <div
-                    v-else
-                    class="flex size-full flex-col items-center justify-center gap-1 text-muted-foreground"
-                >
-                    <ImagePlus class="size-6" />
-                    <span class="text-xs">No image</span>
+        <Dropzone
+            :id="name"
+            ref="dropzone"
+            :name="name"
+            accept="image/jpeg,image/png,image/webp"
+            :invalid="Boolean(error)"
+            class="w-full max-w-sm p-0"
+            :class="aspectClass"
+            @select="onSelect"
+        >
+            <template #default="{ isDragging }">
+                <template v-if="previewUrl">
+                    <img
+                        :src="previewUrl"
+                        alt=""
+                        class="absolute inset-0 size-full object-cover"
+                    />
+                    <div
+                        class="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 text-white opacity-0 transition-opacity hover:opacity-100"
+                        :class="{ 'opacity-100': isDragging }"
+                    >
+                        <Upload class="size-5" />
+                        <span class="text-xs font-medium">
+                            {{
+                                isDragging
+                                    ? 'Drop to replace'
+                                    : 'Click or drop to replace'
+                            }}
+                        </span>
+                    </div>
+                </template>
+                <div v-else class="flex flex-col items-center gap-1 px-4">
+                    <component
+                        :is="isDragging ? Upload : ImagePlus"
+                        class="size-6"
+                    />
+                    <span class="text-xs font-medium text-foreground">
+                        {{
+                            isDragging
+                                ? 'Drop image here'
+                                : 'Drag & drop an image'
+                        }}
+                    </span>
+                    <span class="text-xs">or click to browse</span>
                 </div>
-            </div>
-            <div class="flex flex-col gap-2">
-                <input
-                    :id="name"
-                    ref="input"
-                    type="file"
-                    :name="name"
-                    accept="image/jpeg,image/png,image/webp"
-                    class="block w-full max-w-xs text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
-                    @change="onChange"
-                />
-                <p v-if="hint" class="text-xs text-muted-foreground">
-                    {{ hint }}
-                </p>
-                <Button
-                    v-if="previewUrl"
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    class="w-fit"
-                    @click="clear"
-                >
-                    <Trash2 class="size-4" /> Remove image
-                </Button>
-                <input
-                    v-if="removeName && removed"
-                    type="hidden"
-                    :name="removeName"
-                    value="1"
-                />
-            </div>
+            </template>
+        </Dropzone>
+        <div class="flex flex-wrap items-center gap-3">
+            <p v-if="hint" class="text-xs text-muted-foreground">
+                {{ hint }}
+            </p>
+            <Button
+                v-if="previewUrl"
+                type="button"
+                variant="outline"
+                size="sm"
+                class="w-fit"
+                @click="clear"
+            >
+                <Trash2 class="size-4" /> Remove image
+            </Button>
         </div>
+        <input
+            v-if="removeName && removed"
+            type="hidden"
+            :name="removeName"
+            value="1"
+        />
         <InputError :message="error" />
     </div>
 </template>

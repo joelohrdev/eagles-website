@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { Form, Head, router } from '@inertiajs/vue3';
 import { ArrowDown, ArrowUp, Upload } from '@lucide/vue';
+import { onBeforeUnmount, ref } from 'vue';
 import FacilityPhotoController from '@/actions/App/Http/Controllers/Admin/FacilityPhotoController';
 import ConfirmDelete from '@/components/admin/ConfirmDelete.vue';
 import EmptyState from '@/components/admin/EmptyState.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
+import { Dropzone } from '@/components/ui/dropzone';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { destroy, index, reorder } from '@/routes/admin/facility-photos';
@@ -21,6 +23,28 @@ defineOptions({
         breadcrumbs: [{ title: 'Facility Photos', href: index() }],
     },
 });
+
+const dropzone = ref<InstanceType<typeof Dropzone> | null>(null);
+const selected = ref<{ name: string; url: string }[]>([]);
+
+onBeforeUnmount(revokePreviews);
+
+function revokePreviews() {
+    selected.value.forEach((preview) => URL.revokeObjectURL(preview.url));
+}
+
+function onSelect(files: File[]) {
+    revokePreviews();
+    selected.value = files.map((file) => ({
+        name: file.name,
+        url: URL.createObjectURL(file),
+    }));
+}
+
+function resetSelection() {
+    dropzone.value?.clear();
+    onSelect([]);
+}
 
 function move(fromIndex: number, direction: -1 | 1) {
     const toIndex = fromIndex + direction;
@@ -48,25 +72,59 @@ function move(fromIndex: number, direction: -1 | 1) {
         <Form
             v-bind="FacilityPhotoController.store.form()"
             class="rounded-lg border bg-card p-4"
+            :options="{ preserveScroll: true }"
+            @success="resetSelection"
             v-slot="{ errors, processing }"
         >
             <div class="grid content-start gap-2">
                 <Label for="photos">Upload photos</Label>
-                <input
+                <Dropzone
                     id="photos"
-                    type="file"
+                    ref="dropzone"
                     name="photos[]"
                     multiple
                     accept="image/jpeg,image/png,image/webp"
-                    class="block w-full max-w-md text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
-                />
+                    :invalid="Boolean(errors.photos ?? errors['photos.0'])"
+                    class="min-h-36 w-full max-w-xl"
+                    @select="onSelect"
+                >
+                    <template #default="{ isDragging }">
+                        <Upload class="size-6" />
+                        <span class="text-xs font-medium text-foreground">
+                            {{
+                                isDragging
+                                    ? 'Drop photos here'
+                                    : 'Drag & drop photos'
+                            }}
+                        </span>
+                        <span class="text-xs">or click to browse</span>
+                    </template>
+                </Dropzone>
+                <div
+                    v-if="selected.length > 0"
+                    class="flex max-w-xl flex-wrap items-center gap-2"
+                >
+                    <img
+                        v-for="preview in selected"
+                        :key="preview.url"
+                        :src="preview.url"
+                        :alt="preview.name"
+                        :title="preview.name"
+                        class="size-14 rounded-md border object-cover"
+                    />
+                    <span class="text-xs text-muted-foreground">
+                        {{ selected.length }}
+                        {{ selected.length === 1 ? 'photo' : 'photos' }}
+                        selected
+                    </span>
+                </div>
                 <p class="text-xs text-muted-foreground">
                     Select up to 20 images at a time. JPG, PNG, or WebP up to 8
                     MB each.
                 </p>
                 <InputError :message="errors.photos ?? errors['photos.0']" />
             </div>
-            <Button class="mt-4" :disabled="processing"
+            <Button class="mt-4" :disabled="processing || selected.length === 0"
                 ><Upload class="size-4" /> Upload</Button
             >
         </Form>
