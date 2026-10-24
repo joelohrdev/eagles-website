@@ -180,7 +180,7 @@ const secondaryCta = computed(() =>
                 </div>
                 <blockquote
                     v-if="home.home_belief"
-                    class="mx-auto mt-8 max-w-3xl border-l-4 border-sky pl-5 text-left font-display text-xl font-semibold tracking-wide text-navy uppercase md:text-2xl dark:text-snow"
+                    class="mx-auto mt-10 max-w-4xl rounded-lg bg-navy px-6 py-8 text-center font-display text-2xl leading-snug font-bold tracking-wide text-snow uppercase shadow-lg md:px-12 md:py-10 md:text-3xl dark:bg-sky dark:text-navy"
                 >
                     {{ home.home_belief }}
                 </blockquote>
