@@ -81,6 +81,14 @@ Route::get('share-card.png', ShareCardController::class)->name('share-card');
 
 /*
 |--------------------------------------------------------------------------
+| Legacy URLs from the old site that are still indexed
+|--------------------------------------------------------------------------
+*/
+
+Route::permanentRedirect('about-us/index.htm', '/coaches');
+
+/*
+|--------------------------------------------------------------------------
 | Staff invitations (guest)
 |--------------------------------------------------------------------------
 */

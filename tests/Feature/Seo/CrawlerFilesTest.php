@@ -60,3 +60,11 @@ test('llms.txt summarizes the organization and programs', function () {
         ->toContain(route('tryouts.show', $tryout))
         ->toContain('Winter Hitting Camp');
 });
+
+test('no static robots.txt shadows the generated one', function () {
+    expect(public_path('robots.txt'))->not->toBeFile();
+});
+
+test('indexed URLs from the old site permanently redirect', function () {
+    $this->get('/about-us/index.htm')->assertMovedPermanently()->assertRedirect('/coaches');
+});

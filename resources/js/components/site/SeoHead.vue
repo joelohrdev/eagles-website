@@ -13,8 +13,14 @@ const page = usePage();
 const seo = computed<SeoProps | undefined>(() => page.props.seo);
 const siteName = computed(() => seo.value?.site_name ?? page.props.name);
 
+/**
+ * Escaping `<` keeps a closing script tag inside any string value from closing the
+ * tag early; JSON parsers read `\u003c` back as `<`.
+ */
 const jsonLd = computed(() =>
-    (seo.value?.json_ld ?? []).map((schema) => JSON.stringify(schema)),
+    (seo.value?.json_ld ?? []).map((schema) =>
+        JSON.stringify(schema).replace(/</g, '\\u003c'),
+    ),
 );
 </script>
 
@@ -126,15 +132,14 @@ const jsonLd = computed(() =>
             :content="seo.share_image_url"
         />
 
-        <!-- eslint-disable vue/no-v-text-v-html-on-component -- JSON-LD must be a <script> tag; content is JSON.stringify output -->
+        <!-- Vue templates strip <script>, so render it dynamically. The JSON must be text children: Inertia's Head prints v-html as an innerHTML="..." attribute, leaving the script empty. -->
         <component
             :is="'script'"
             v-for="(schema, index) in jsonLd"
             :key="index"
             :head-key="`ld-${index}`"
             type="application/ld+json"
-            v-html="schema"
-        />
-        <!-- eslint-enable vue/no-v-text-v-html-on-component -->
+            >{{ schema }}</component
+        >
     </Head>
 </template>
