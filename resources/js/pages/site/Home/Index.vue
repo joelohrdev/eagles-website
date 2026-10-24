@@ -360,12 +360,8 @@ const secondaryCta = computed(() =>
                     <li
                         v-for="item in home.home_year_round_items"
                         :key="item.title"
-                        class="flex gap-4 rounded-lg border bg-card p-5 shadow-sm"
+                        class="rounded-lg border bg-card p-5 shadow-sm"
                     >
-                        <span
-                            class="mt-1 size-2.5 shrink-0 rounded-full bg-sky"
-                            aria-hidden="true"
-                        />
                         <div>
                             <h3
                                 class="font-display text-xl font-semibold tracking-wide uppercase"
