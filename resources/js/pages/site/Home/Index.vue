@@ -515,13 +515,6 @@ const secondaryCta = computed(() =>
                     >
                         {{ home.home_about_body }}
                     </p>
-                    <Button
-                        v-if="contactEnabled"
-                        as-child
-                        class="mt-6 bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
-                    >
-                        <Link :href="contact()">Get in touch</Link>
-                    </Button>
                 </div>
                 <div>
                     <YouTubeEmbed
