@@ -81,10 +81,10 @@ function initials(name: string): string {
                         class="size-24 ring-4 ring-sky/30 transition group-hover:ring-sky sm:size-32"
                     >
                         <AvatarImage
-                            v-if="coach.photo_thumbnail_url"
-                            :src="coach.photo_thumbnail_url"
+                            v-if="coach.photo_url"
+                            :src="coach.photo_url"
                             :alt="`${coach.name} headshot`"
-                            class="object-cover"
+                            class="object-cover object-[center_20%]"
                             loading="lazy"
                         />
                         <AvatarFallback
@@ -126,7 +126,7 @@ function initials(name: string): string {
                         v-if="selectedCoach.photo_url"
                         :src="selectedCoach.photo_url"
                         :alt="`${selectedCoach.name} headshot`"
-                        class="object-cover"
+                        class="object-cover object-[center_20%]"
                     />
                     <AvatarFallback
                         class="bg-navy font-display text-4xl font-bold text-snow"
