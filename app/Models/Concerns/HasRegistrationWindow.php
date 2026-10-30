@@ -65,7 +65,7 @@ trait HasRegistrationWindow
      * Registrations that count against capacity. Load the count up front with
      * `withCount('activeRegistrations')` when listing several records.
      *
-     * @return HasMany<Model, $this>
+     * @return HasMany<covariant Model, $this>
      */
     public function activeRegistrations(): HasMany
     {
