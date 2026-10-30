@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Form, Link } from '@inertiajs/vue3';
 import { CheckCircle2, Mail, Phone } from '@lucide/vue';
+import { ref } from 'vue';
 import ContactController from '@/actions/App/Http/Controllers/Site/ContactController';
 import InputError from '@/components/InputError.vue';
 import PageHero from '@/components/site/PageHero.vue';
 import PhoneInput from '@/components/site/PhoneInput.vue';
+import TurnstileWidget from '@/components/site/TurnstileWidget.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +21,10 @@ defineProps<{
         email: string | null;
     };
     sent: boolean;
+    turnstileSiteKey: string | null;
 }>();
+
+const turnstile = ref<InstanceType<typeof TurnstileWidget> | null>(null);
 </script>
 
 <template>
@@ -58,6 +63,7 @@ defineProps<{
                     v-bind="ContactController.store.form()"
                     class="space-y-5 rounded-lg border bg-card p-6 shadow-sm md:p-8"
                     v-slot="{ errors, processing }"
+                    @finish="turnstile?.reset()"
                 >
                     <h2
                         class="font-display text-2xl font-semibold tracking-wide uppercase"
@@ -139,6 +145,19 @@ defineProps<{
                             type="text"
                             tabindex="-1"
                             autocomplete="off"
+                        />
+                    </div>
+
+                    <div
+                        v-if="turnstileSiteKey"
+                        class="grid content-start gap-2"
+                    >
+                        <TurnstileWidget
+                            ref="turnstile"
+                            :site-key="turnstileSiteKey"
+                        />
+                        <InputError
+                            :message="errors['cf-turnstile-response']"
                         />
                     </div>
 

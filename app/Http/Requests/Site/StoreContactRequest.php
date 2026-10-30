@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Site;
 
 use App\Http\Requests\Concerns\NormalizesPhoneNumbers;
+use App\Rules\PassesTurnstile;
+use App\Services\Turnstile;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreContactRequest extends FormRequest
@@ -26,6 +28,9 @@ class StoreContactRequest extends FormRequest
             'subject' => ['nullable', 'string', 'max:150'],
             'message' => ['required', 'string', 'max:3000'],
             'website' => ['nullable', 'prohibited'],
+            ...app(Turnstile::class)->isEnabled() ? [
+                Turnstile::RESPONSE_FIELD => ['required', 'string', new PassesTurnstile($this->ip())],
+            ] : [],
         ];
     }
 
@@ -37,6 +42,7 @@ class StoreContactRequest extends FormRequest
         return [
             ...$this->phoneMessages('phone'),
             'website.prohibited' => 'Submission rejected.',
+            Turnstile::RESPONSE_FIELD.'.required' => 'Please confirm you are not a robot and try again.',
         ];
     }
 

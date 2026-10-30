@@ -2,6 +2,10 @@
 
 use App\Mail\ContactSubmissionReceived;
 use App\Models\ContactSubmission;
+use App\Services\Turnstile;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -88,4 +92,102 @@ test('honeypot submissions are rejected', function () {
 
     expect(ContactSubmission::count())->toBe(0);
     Mail::assertNothingQueued();
+});
+
+function enableTurnstile(): void
+{
+    config([
+        'services.turnstile.site_key' => 'test-site-key',
+        'services.turnstile.secret_key' => 'test-secret-key',
+    ]);
+}
+
+/**
+ * @return array<string, string>
+ */
+function contactMessage(array $overrides = []): array
+{
+    return [
+        'name' => 'Pat Parent',
+        'email' => 'pat@example.com',
+        'message' => 'When are tryouts?',
+        ...$overrides,
+    ];
+}
+
+test('the turnstile site key reaches the contact page only once both keys are set', function () {
+    $this->get(route('contact'))
+        ->assertInertia(fn (Assert $page) => $page->where('turnstileSiteKey', null));
+
+    config(['services.turnstile.site_key' => 'test-site-key']);
+
+    $this->get(route('contact'))
+        ->assertInertia(fn (Assert $page) => $page->where('turnstileSiteKey', null));
+
+    enableTurnstile();
+
+    $this->get(route('contact'))
+        ->assertInertia(fn (Assert $page) => $page->where('turnstileSiteKey', 'test-site-key'));
+});
+
+test('a message with a valid turnstile token is sent', function () {
+    Mail::fake();
+    enableTurnstile();
+    Http::fake([Turnstile::VERIFY_URL => Http::response(['success' => true])]);
+
+    $this->post(route('contact.store'), contactMessage([Turnstile::RESPONSE_FIELD => 'good-token']))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('contact', ['sent' => 1]));
+
+    expect(ContactSubmission::count())->toBe(1);
+    Http::assertSent(fn (Request $request) => $request['secret'] === 'test-secret-key'
+        && $request['response'] === 'good-token'
+        && $request['remoteip'] === '127.0.0.1');
+});
+
+test('a message is rejected when turnstile fails', function (array $fakeResponse) {
+    Mail::fake();
+    enableTurnstile();
+    Http::fake([Turnstile::VERIFY_URL => Http::response(...$fakeResponse)]);
+
+    $this->post(route('contact.store'), contactMessage([Turnstile::RESPONSE_FIELD => 'bad-token']))
+        ->assertSessionHasErrors(Turnstile::RESPONSE_FIELD);
+
+    expect(ContactSubmission::count())->toBe(0);
+    Mail::assertNothingQueued();
+})->with([
+    'token rejected' => [[['success' => false, 'error-codes' => ['invalid-input-response']]]],
+    'cloudflare error' => [[[], 500]],
+]);
+
+test('a message without a turnstile token is rejected without calling cloudflare', function () {
+    enableTurnstile();
+    Http::fake();
+
+    $this->post(route('contact.store'), contactMessage())
+        ->assertSessionHasErrors(Turnstile::RESPONSE_FIELD);
+
+    expect(ContactSubmission::count())->toBe(0);
+    Http::assertNothingSent();
+});
+
+test('a message is rejected when cloudflare cannot be reached', function () {
+    enableTurnstile();
+    Http::fake(fn () => throw new ConnectionException('timed out'));
+
+    $this->post(route('contact.store'), contactMessage([Turnstile::RESPONSE_FIELD => 'good-token']))
+        ->assertSessionHasErrors(Turnstile::RESPONSE_FIELD);
+
+    expect(ContactSubmission::count())->toBe(0);
+});
+
+test('turnstile is skipped while its keys are not set', function () {
+    Mail::fake();
+    Http::fake();
+
+    $this->post(route('contact.store'), contactMessage())
+        ->assertSessionHasNoErrors();
+
+    expect(ContactSubmission::count())->toBe(1);
+    Http::assertNothingSent();
 });

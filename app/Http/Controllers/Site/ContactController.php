@@ -8,6 +8,7 @@ use App\Mail\ContactSubmissionReceived;
 use App\Models\ContactSubmission;
 use App\Services\SeoResolver;
 use App\Services\SiteSettings;
+use App\Services\Turnstile;
 use App\Support\Seo\Schema;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ use Inertia\Response;
 
 class ContactController extends Controller
 {
-    public function __construct(private SiteSettings $settings, private SeoResolver $seo) {}
+    public function __construct(private SiteSettings $settings, private SeoResolver $seo, private Turnstile $turnstile) {}
 
     public function create(Request $request): Response
     {
@@ -28,6 +29,7 @@ class ContactController extends Controller
             'intro' => $intro,
             'org' => $org,
             'sent' => $request->boolean('sent'),
+            'turnstileSiteKey' => $this->turnstile->siteKey(),
             'seo' => $this->seo->forRoute('contact', [
                 'title' => 'Contact Us',
                 'description' => $intro,
@@ -43,7 +45,7 @@ class ContactController extends Controller
 
     public function store(StoreContactRequest $request): RedirectResponse
     {
-        $submission = ContactSubmission::create($request->safe()->except('website'));
+        $submission = ContactSubmission::create($request->safe()->except(['website', Turnstile::RESPONSE_FIELD]));
 
         if ($orgEmail = $this->settings->get('email')) {
             Mail::to($orgEmail)->queue(new ContactSubmissionReceived($submission));
