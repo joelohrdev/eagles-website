@@ -2,10 +2,12 @@
 
 use App\Models\Camp;
 use App\Models\NavigationItem;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\PageVisibility;
 use App\Services\SiteSettings;
+use Illuminate\Support\Facades\URL;
 
 function disablePage(string $page): void
 {
@@ -57,6 +59,15 @@ test('switching off merch closes the store, the cart, and checkout', function ()
     $this->get(route('cart.index'))->assertNotFound();
     $this->post(route('cart.items.store'))->assertNotFound();
     $this->get(route('checkout.create'))->assertNotFound();
+});
+
+test('camp payers still get their checkout pages when merch is switched off', function () {
+    $order = Order::factory()->camp()->create();
+
+    disablePage('merch');
+
+    $this->get(URL::signedRoute('checkout.success', ['order' => $order->number]))->assertOk();
+    $this->get(URL::signedRoute('checkout.cancel', ['order' => $order->number]))->assertRedirect();
 });
 
 test('switching off merch hides the cart icon', function () {

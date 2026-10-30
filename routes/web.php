@@ -61,13 +61,15 @@ Route::middleware('page:merch')->group(function () {
 
     Route::get('checkout', [CheckoutController::class, 'create'])->name('checkout.create');
     Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1')->name('checkout.store');
-    Route::get('checkout/{order:number}/success', [CheckoutController::class, 'success'])
-        ->middleware('signed')
-        ->name('checkout.success');
-    Route::get('checkout/{order:number}/cancel', [CheckoutController::class, 'cancel'])
-        ->middleware('signed')
-        ->name('checkout.cancel');
 });
+
+/** Camp payments land here too, so these stay up when Merch is switched off. */
+Route::get('checkout/{order:number}/success', [CheckoutController::class, 'success'])
+    ->middleware('signed')
+    ->name('checkout.success');
+Route::get('checkout/{order:number}/cancel', [CheckoutController::class, 'cancel'])
+    ->middleware('signed')
+    ->name('checkout.cancel');
 
 Route::middleware('page:contact')->group(function () {
     Route::get('contact', [ContactController::class, 'create'])->name('contact');
