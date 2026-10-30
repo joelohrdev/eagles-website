@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Form, Head, Link } from '@inertiajs/vue3';
-import { Plus, Trash2 } from '@lucide/vue';
+import { Form, Head, Link, router } from '@inertiajs/vue3';
+import { Check, Copy, Plus, RefreshCw, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
+import PagePreviewLinkController from '@/actions/App/Http/Controllers/Admin/PagePreviewLinkController';
 import SiteSettingController from '@/actions/App/Http/Controllers/Admin/SiteSettingController';
 import FormTabs from '@/components/admin/FormTabs.vue';
 import ImageUpload from '@/components/admin/ImageUpload.vue';
@@ -25,6 +26,7 @@ type PageToggle = {
     label: string;
     description: string;
     setting: string;
+    previewUrl: string;
 };
 
 const props = defineProps<{
@@ -77,6 +79,32 @@ const pageEnabled = ref<Record<string, boolean>>(
         props.pages.map((page) => [page.key, !!props.settings[page.setting]]),
     ),
 );
+
+const copiedPreview = ref<string | null>(null);
+
+async function copyPreviewLink(page: PageToggle) {
+    try {
+        await navigator.clipboard.writeText(page.previewUrl);
+        copiedPreview.value = page.key;
+        setTimeout(() => (copiedPreview.value = null), 2000);
+    } catch {
+        // clipboard unavailable
+    }
+}
+
+function resetPreviewLink(page: PageToggle) {
+    if (
+        !confirm(
+            `Create a new preview link for ${page.label}? Anyone you sent the current link to will lose access.`,
+        )
+    ) {
+        return;
+    }
+
+    router.visit(PagePreviewLinkController.update(page.key), {
+        preserveScroll: true,
+    });
+}
 
 const currentLabel =
     props.groups.find((g) => g.key === props.group)?.label ?? 'Settings';
@@ -868,30 +896,89 @@ const currentLabel =
                     disappears from the header, footer, sitemap, and
                     <code>llms.txt</code>, and anyone who opens its URL gets a
                     404. Turning off Merch also hides the cart icon and closes
-                    checkout.
+                    checkout. Each switched-off page gets a private preview link
+                    you can share for approval before it goes live.
                 </p>
                 <div class="divide-y rounded-md border">
-                    <label
+                    <div
                         v-for="page in pages"
                         :key="page.key"
-                        class="flex items-start gap-3 p-4 text-sm"
+                        class="grid gap-3 p-4 text-sm"
                     >
-                        <input
-                            type="hidden"
-                            :name="page.setting"
-                            :value="pageEnabled[page.key] ? 1 : 0"
-                        />
-                        <Switch
-                            v-model="pageEnabled[page.key]"
-                            class="mt-0.5"
-                        />
-                        <span class="grid gap-1">
-                            <span class="font-medium">{{ page.label }}</span>
-                            <span class="text-muted-foreground">{{
-                                page.description
-                            }}</span>
-                        </span>
-                    </label>
+                        <label class="flex items-start gap-3">
+                            <input
+                                type="hidden"
+                                :name="page.setting"
+                                :value="pageEnabled[page.key] ? 1 : 0"
+                            />
+                            <Switch
+                                v-model="pageEnabled[page.key]"
+                                class="mt-0.5"
+                            />
+                            <span class="grid gap-1">
+                                <span class="font-medium">{{
+                                    page.label
+                                }}</span>
+                                <span class="text-muted-foreground">{{
+                                    page.description
+                                }}</span>
+                            </span>
+                        </label>
+                        <div
+                            v-if="!settings[page.setting]"
+                            class="grid gap-2 rounded-md bg-muted/40 p-3 sm:ml-12"
+                        >
+                            <Label :for="`preview_${page.key}`"
+                                >Preview link</Label
+                            >
+                            <div class="flex flex-wrap gap-2">
+                                <Input
+                                    :id="`preview_${page.key}`"
+                                    :model-value="page.previewUrl"
+                                    readonly
+                                    class="min-w-0 flex-1 font-mono text-xs"
+                                    @focus="
+                                        (
+                                            $event.target as HTMLInputElement
+                                        ).select()
+                                    "
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    @click="copyPreviewLink(page)"
+                                >
+                                    <Check
+                                        v-if="copiedPreview === page.key"
+                                        class="size-4"
+                                    />
+                                    <Copy v-else class="size-4" />
+                                    {{
+                                        copiedPreview === page.key
+                                            ? 'Copied'
+                                            : 'Copy'
+                                    }}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    @click="resetPreviewLink(page)"
+                                >
+                                    <RefreshCw class="size-4" />
+                                    New link
+                                </Button>
+                            </div>
+                            <p class="text-xs text-muted-foreground">
+                                Send this to anyone who needs to approve the
+                                page. It opens the page while it is switched off
+                                and is never shown to search engines.
+                                <strong>New link</strong> stops the old one
+                                working.
+                            </p>
+                        </div>
+                    </div>
                 </div>
                 <p class="text-sm text-muted-foreground">
                     Tryouts are not listed: those links show up on their own

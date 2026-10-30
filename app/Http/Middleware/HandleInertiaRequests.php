@@ -63,6 +63,8 @@ class HandleInertiaRequests extends Middleware
             'cartCount' => fn () => (int) array_sum($request->session()->get('cart', [])),
             /** Badge on the sidebar's Contact Inbox; guests never see the inbox, so they skip the query. */
             'unreadContactCount' => fn (): int => $user ? ContactSubmission::query()->unread()->count() : 0,
+            /** Label of the switched-off page this visitor is previewing, shown in a "not live yet" banner. */
+            'pagePreview' => fn (): ?string => $request->attributes->get(EnsurePageIsEnabled::PREVIEW_ATTRIBUTE),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

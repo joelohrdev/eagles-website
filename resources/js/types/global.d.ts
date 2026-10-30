@@ -26,6 +26,8 @@ declare module '@inertiajs/core' {
             unreadContactCount: number;
             /** False while no tryout is open for registration — hide every tryout link. */
             tryoutsOpen: boolean;
+            /** Label of the switched-off page being previewed through its share link, or null. */
+            pagePreview: string | null;
             seo?: SeoProps;
             sidebarOpen: boolean;
             [key: string]: unknown;

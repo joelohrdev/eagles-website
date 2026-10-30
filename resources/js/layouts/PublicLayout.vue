@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { usePage } from '@inertiajs/vue3';
 import SeoHead from '@/components/site/SeoHead.vue';
 import SiteFooter from '@/components/site/SiteFooter.vue';
 import SiteHeader from '@/components/site/SiteHeader.vue';
 import { Toaster } from '@/components/ui/sonner';
+
+const page = usePage();
 </script>
 
 <template>
@@ -14,6 +17,14 @@ import { Toaster } from '@/components/ui/sonner';
         >
             Skip to content
         </a>
+        <p
+            v-if="page.props.pagePreview"
+            class="bg-sky px-4 py-2 text-center text-sm font-medium text-navy"
+            role="status"
+        >
+            Preview: the {{ page.props.pagePreview }} page is not live yet. Only
+            people with the preview link can see it.
+        </p>
         <SiteHeader />
         <main id="main" class="flex-1">
             <slot />

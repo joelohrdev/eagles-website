@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\FacilityPhotoController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\PagePreviewLinkController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductVariantController;
 use App\Http\Controllers\Admin\SeoMetaController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\TryoutController;
 use App\Http\Controllers\Admin\TryoutRegistrationController;
 use App\Http\Controllers\Admin\UserController;
+use App\Services\PageVisibility;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -71,6 +73,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::put('settings/{group}', [SiteSettingController::class, 'update'])
             ->whereIn('group', ['organization', 'home', 'facility', 'contact', 'pages', 'seo'])
             ->name('settings.update');
+        Route::put('settings/pages/{page}/preview-link', [PagePreviewLinkController::class, 'update'])
+            ->whereIn('page', array_keys(PageVisibility::PAGES))
+            ->name('settings.pages.preview-link.update');
 
         Route::get('navigation', [NavigationController::class, 'index'])->name('navigation.index');
         Route::post('navigation/items', [NavigationController::class, 'store'])->name('navigation.items.store');

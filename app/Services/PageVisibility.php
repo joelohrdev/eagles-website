@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Contracts\Session\Session;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 
 /**
@@ -11,6 +13,10 @@ use Illuminate\Support\Str;
  * itself 404s, every menu item or CTA pointing at it disappears, and it drops
  * out of the sitemap and llms.txt. Merch owns the cart and checkout, so
  * turning it off hides the cart icon too.
+ *
+ * A switched-off page can still be shown to someone for approval through its
+ * preview link: opening the signed link grants that browser session access to
+ * the page (and everything nested under it) until the link is replaced.
  *
  * Tryouts are deliberately absent. Their links already hide themselves while
  * no tryout is open for registration (see TryoutAvailability) and must never
@@ -58,11 +64,80 @@ class PageVisibility
         ],
     ];
 
+    /**
+     * Session key holding the preview grants as `[page => link version]`.
+     */
+    public const string PREVIEW_SESSION_KEY = 'page_previews';
+
     public function __construct(private SiteSettings $settings) {}
 
     public static function settingKey(string $page): string
     {
         return "page_{$page}_enabled";
+    }
+
+    /**
+     * Setting that versions a page's preview link; bumping it revokes every link
+     * shared so far.
+     */
+    public static function previewVersionKey(string $page): string
+    {
+        return "page_{$page}_preview_version";
+    }
+
+    /**
+     * The current version of a page's preview link.
+     */
+    public function previewVersion(string $page): int
+    {
+        return (int) $this->settings->get(self::previewVersionKey($page), 1);
+    }
+
+    /**
+     * A shareable link that shows this page while it is switched off.
+     */
+    public function previewUrl(string $page): string
+    {
+        return URL::signedRoute('page-preview', ['page' => $page, 'version' => $this->previewVersion($page)]);
+    }
+
+    /**
+     * Replace a page's preview link, so links shared earlier stop working.
+     */
+    public function resetPreviewLink(string $page): void
+    {
+        $this->settings->set(self::previewVersionKey($page), $this->previewVersion($page) + 1);
+    }
+
+    /**
+     * Let this session see a switched-off page. Returns false when the link has
+     * been replaced since it was shared.
+     */
+    public function grantPreview(Session $session, string $page, int $version): bool
+    {
+        if ($version !== $this->previewVersion($page)) {
+            return false;
+        }
+
+        $session->put(self::PREVIEW_SESSION_KEY.'.'.$page, $version);
+
+        return true;
+    }
+
+    /**
+     * Has this session opened the page's current preview link?
+     */
+    public function isPreviewing(Session $session, string $page): bool
+    {
+        return $session->get(self::PREVIEW_SESSION_KEY.'.'.$page) === $this->previewVersion($page);
+    }
+
+    /**
+     * The public URL a page starts at.
+     */
+    public static function url(string $page): string
+    {
+        return route(self::PAGES[$page]['routes'][0]);
     }
 
     /**

@@ -27,7 +27,7 @@ class SiteSettingController extends Controller
         'seo' => 'SEO defaults',
     ];
 
-    public function __construct(private SiteSettings $settings, private ImageUploader $images) {}
+    public function __construct(private SiteSettings $settings, private ImageUploader $images, private PageVisibility $pages) {}
 
     public function edit(string $group): Response
     {
@@ -41,6 +41,7 @@ class SiteSettingController extends Controller
                 'label' => $page['label'],
                 'description' => $page['description'],
                 'setting' => PageVisibility::settingKey($key),
+                'previewUrl' => $this->pages->previewUrl($key),
             ])->values(),
             'settings' => $settings,
             'imageUrls' => collect(SiteSettings::IMAGE_KEYS)

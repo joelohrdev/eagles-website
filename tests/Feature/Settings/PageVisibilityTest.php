@@ -165,3 +165,74 @@ test('staff cannot switch pages off', function () {
         ->get(route('admin.settings.edit', 'pages'))
         ->assertForbidden();
 });
+
+test('a preview link opens a switched off page and everything under it', function () {
+    $camp = Camp::factory()->create();
+    disablePage('camps');
+
+    $this->get(app(PageVisibility::class)->previewUrl('camps'))
+        ->assertRedirect(route('camps.index'));
+
+    $this->get(route('camps.index'))
+        ->assertOk()
+        ->assertHeader('X-Robots-Tag', 'noindex, nofollow')
+        ->assertInertia(fn ($page) => $page->where('pagePreview', 'Camps'));
+    $this->get(route('camps.show', $camp))->assertOk();
+
+    $this->get(route('merch.index'))->assertOk()->assertHeaderMissing('X-Robots-Tag');
+});
+
+test('a preview link only opens its own page', function () {
+    disablePage('camps');
+    disablePage('merch');
+
+    $this->get(app(PageVisibility::class)->previewUrl('camps'));
+
+    $this->get(route('merch.index'))->assertNotFound();
+});
+
+test('a tampered preview link is rejected', function () {
+    disablePage('camps');
+
+    $this->get(route('page-preview', ['page' => 'camps', 'version' => 1]))->assertForbidden();
+    $this->get(route('camps.index'))->assertNotFound();
+});
+
+test('a replaced preview link stops working, even for people who already opened it', function () {
+    disablePage('camps');
+    $pages = app(PageVisibility::class);
+    $oldLink = $pages->previewUrl('camps');
+
+    $this->get($oldLink);
+    $this->get(route('camps.index'))->assertOk();
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->put(route('admin.settings.pages.preview-link.update', 'camps'))
+        ->assertRedirect(route('admin.settings.edit', 'pages'));
+
+    $this->get(route('camps.index'))->assertNotFound();
+    $this->get($oldLink)->assertNotFound();
+
+    $this->get($pages->previewUrl('camps'));
+    $this->get(route('camps.index'))->assertOk();
+});
+
+test('a preview link goes straight to a page that is already live', function () {
+    $this->get(app(PageVisibility::class)->previewUrl('camps'))
+        ->assertRedirect(route('camps.index'));
+
+    $this->get(route('camps.index'))->assertOk()->assertInertia(fn ($page) => $page->where('pagePreview', null));
+});
+
+test('admins see a preview link for each page', function () {
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('admin.settings.edit', 'pages'))
+        ->assertInertia(fn ($page) => $page
+            ->where('pages.0.previewUrl', app(PageVisibility::class)->previewUrl('teams')));
+});
+
+test('staff cannot replace preview links', function () {
+    $this->actingAs(User::factory()->staff()->create())
+        ->put(route('admin.settings.pages.preview-link.update', 'camps'))
+        ->assertForbidden();
+});

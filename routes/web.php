@@ -11,6 +11,7 @@ use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\InvitationAcceptController;
 use App\Http\Controllers\Site\LlmsController;
 use App\Http\Controllers\Site\MerchController;
+use App\Http\Controllers\Site\PagePreviewController;
 use App\Http\Controllers\Site\RobotsController;
 use App\Http\Controllers\Site\ShareCardController;
 use App\Http\Controllers\Site\SitemapController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Site\StripeWebhookController;
 use App\Http\Controllers\Site\TeamController;
 use App\Http\Controllers\Site\TryoutController;
 use App\Http\Controllers\Site\TryoutRegistrationController;
+use App\Services\PageVisibility;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -71,6 +73,12 @@ Route::middleware('page:contact')->group(function () {
     Route::get('contact', [ContactController::class, 'create'])->name('contact');
     Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:5,1')->name('contact.store');
 });
+
+Route::get('preview/{page}/{version}', PagePreviewController::class)
+    ->whereIn('page', array_keys(PageVisibility::PAGES))
+    ->whereNumber('version')
+    ->middleware(['signed', 'throttle:30,1'])
+    ->name('page-preview');
 
 Route::post('stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
 
