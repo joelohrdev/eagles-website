@@ -176,7 +176,7 @@ const sourceLabel = (credential: Credential): string =>
             <CardContent class="space-y-4 text-sm">
                 <Button as-child>
                     <a
-                        href="https://dashboard.stripe.com/webhooks"
+                        href="https://dashboard.stripe.com/workbench/webhooks"
                         target="_blank"
                         rel="noopener"
                     >
@@ -185,14 +185,24 @@ const sourceLabel = (credential: Credential): string =>
                     </a>
                 </Button>
                 <ol class="list-decimal space-y-2 pl-5">
-                    <li>Click <strong>Create an event destination</strong>.</li>
+                    <li>
+                        Stripe opens a <strong>Workbench</strong> panel along
+                        the bottom of the page, on the
+                        <strong>Webhooks</strong> tab. If it doesn’t appear,
+                        press the <kbd>~</kbd> key and click
+                        <strong>Webhooks</strong>.
+                    </li>
+                    <li>
+                        Click <strong>Add destination</strong>. Some accounts
+                        call it <strong>Create an event destination</strong>.
+                    </li>
                     <li>Choose <strong>Your account</strong>.</li>
                     <li>
-                        For the payload format, choose
-                        <strong>Snapshot</strong>. Stripe labels Thin as
-                        recommended, but this site reads the order details out
-                        of each event, and only Snapshot events include them.
-                        Leave the API version as it is.
+                        If Stripe asks for a payload format, choose
+                        <strong>Snapshot</strong>, even though Thin is marked
+                        recommended. This site reads the order details out of
+                        each event, and only Snapshot events include them. Leave
+                        the API version as it is.
                     </li>
                     <li>
                         Search for and tick these three events:
@@ -228,7 +238,7 @@ const sourceLabel = (credential: Credential): string =>
                     </li>
                     <li>
                         Paste this into <strong>Endpoint URL</strong>, then
-                        create the destination:
+                        click <strong>Create destination</strong>:
                         <div class="mt-2 flex items-center gap-2">
                             <Input
                                 :model-value="webhookUrl"
