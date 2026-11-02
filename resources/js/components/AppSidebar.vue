@@ -4,6 +4,7 @@ import {
     Building2,
     CalendarDays,
     ClipboardList,
+    CreditCard,
     ExternalLink,
     Globe,
     Inbox,
@@ -39,6 +40,7 @@ import { index as contactIndex } from '@/routes/admin/contact-submissions';
 import { index as facilityIndex } from '@/routes/admin/facility-photos';
 import { index as navigationIndex } from '@/routes/admin/navigation';
 import { index as ordersIndex } from '@/routes/admin/orders';
+import { edit as paymentsEdit } from '@/routes/admin/payments';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as seoIndex } from '@/routes/admin/seo';
 import { edit as settingsEdit } from '@/routes/admin/settings';
@@ -76,6 +78,7 @@ const adminNavItems = computed<NavItem[]>(() =>
                   href: settingsEdit('organization'),
                   icon: Settings2,
               },
+              { title: 'Payments', href: paymentsEdit(), icon: CreditCard },
               {
                   title: 'Navigation & Footer',
                   href: navigationIndex(),

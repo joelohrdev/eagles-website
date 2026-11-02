@@ -181,7 +181,7 @@ class SiteSettings
      */
     public function all(): array
     {
-        $stored = Cache::rememberForever(self::CACHE_KEY, fn () => SiteSetting::query()->pluck('value', 'key')->all());
+        $stored = Cache::rememberForever(self::CACHE_KEY, fn () => SiteSetting::query()->whereNotIn('key', StripeSettings::KEYS)->pluck('value', 'key')->all());
 
         return array_merge(self::DEFAULTS, array_filter($stored, fn ($value) => $value !== null));
     }

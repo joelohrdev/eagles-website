@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PagePreviewLinkController;
+use App\Http\Controllers\Admin\PaymentSettingController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductVariantController;
 use App\Http\Controllers\Admin\SeoMetaController;
@@ -76,6 +77,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::put('settings/pages/{page}/preview-link', [PagePreviewLinkController::class, 'update'])
             ->whereIn('page', array_keys(PageVisibility::PAGES))
             ->name('settings.pages.preview-link.update');
+
+        Route::get('payments', [PaymentSettingController::class, 'edit'])->name('payments.edit');
+        Route::put('payments', [PaymentSettingController::class, 'update'])->name('payments.update');
 
         Route::get('navigation', [NavigationController::class, 'index'])->name('navigation.index');
         Route::post('navigation/items', [NavigationController::class, 'store'])->name('navigation.items.store');

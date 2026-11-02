@@ -7,10 +7,10 @@ use App\Enums\OrderType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateOrderRequest;
 use App\Models\Order;
+use App\Services\StripeSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -81,7 +81,7 @@ class OrderController extends Controller
             return null;
         }
 
-        $testMode = Str::startsWith((string) config('services.stripe.key'), 'pk_test');
+        $testMode = app(StripeSettings::class)->isTestMode();
 
         return 'https://dashboard.stripe.com/'.($testMode ? 'test/' : '').'payments/'.$order->stripe_payment_intent_id;
     }

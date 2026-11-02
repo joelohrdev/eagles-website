@@ -9,6 +9,7 @@ use App\Services\PageVisibility;
 use App\Services\Payments\FakeGateway;
 use App\Services\Payments\StripeGateway;
 use App\Services\SiteSettings;
+use App\Services\StripeSettings;
 use App\Services\TryoutAvailability;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -30,7 +31,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(TryoutAvailability::class);
 
         $this->app->singleton(PaymentGateway::class, function (): PaymentGateway {
-            $secret = config('services.stripe.secret');
+            $stripe = $this->app->make(StripeSettings::class);
+            $secret = $stripe->secretKey();
 
             if (blank($secret) || $this->app->runningUnitTests()) {
                 return new FakeGateway;
@@ -38,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
 
             return new StripeGateway(
                 new StripeClient($secret),
-                (string) config('services.stripe.webhook_secret'),
+                (string) $stripe->webhookSecret(),
             );
         });
     }
