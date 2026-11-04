@@ -3,11 +3,14 @@
 use App\Models\Order;
 use App\Models\SiteSetting;
 use App\Models\User;
+use App\Services\Payments\StripeKeyChecker;
 use App\Services\SiteSettings;
 use App\Services\StripeSettings;
 
 beforeEach(function () {
     config(['services.stripe.secret' => null, 'services.stripe.webhook_secret' => null]);
+
+    $this->mock(StripeKeyChecker::class)->shouldReceive('problemWith')->andReturnNull()->byDefault();
 });
 
 test('staff cannot open payment settings', function () {
@@ -89,4 +92,57 @@ test('order payment links point at stripe test mode when the saved key is a test
     $this->actingAs(User::factory()->staff()->create())
         ->get(route('admin.orders.show', $order))
         ->assertInertia(fn ($page) => $page->where('stripeUrl', 'https://dashboard.stripe.com/test/payments/pi_123'));
+});
+
+test('a key stripe rejects is not saved', function () {
+    $this->mock(StripeKeyChecker::class)->shouldReceive('problemWith')->with('rk_live_revoked1111')->andReturn('Stripe didn’t recognise that key.');
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->put(route('admin.payments.update'), ['secret_key' => 'rk_live_revoked1111'])
+        ->assertSessionHasErrors(['secret_key' => 'Stripe didn’t recognise that key.']);
+
+    expect(app(StripeSettings::class)->secretKey())->toBeNull();
+});
+
+test('saving a key that stripe accepts records when it was checked', function () {
+    $this->freezeSecond();
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->put(route('admin.payments.update'), ['secret_key' => 'rk_live_good1111']);
+
+    expect(app(StripeSettings::class)->summary()['keyCheckedAt'])->toBe(now()->toIso8601String());
+});
+
+test('checking the key in use reports what stripe says', function () {
+    config(['services.stripe.secret' => 'sk_live_fromenv0000']);
+    $admin = User::factory()->admin()->create();
+
+    $this->mock(StripeKeyChecker::class)->shouldReceive('problemWith')->with('sk_live_fromenv0000')->andReturn('Stripe accepted the key, but it can’t start checkouts.', null);
+
+    $this->actingAs($admin)->post(route('admin.payments.check'))->assertRedirect(route('admin.payments.edit'));
+    expect(app(StripeSettings::class)->summary()['keyCheckedAt'])->toBeNull();
+
+    $this->actingAs($admin)->post(route('admin.payments.check'));
+    expect(app(StripeSettings::class)->summary()['keyCheckedAt'])->not->toBeNull();
+});
+
+test('webhook deliveries are recorded, and a new signing secret clears them', function () {
+    $this->call('POST', route('stripe.webhook'), [], [], [], ['HTTP_STRIPE_SIGNATURE' => 'bad'], '{}')->assertStatus(400);
+    $this->call('POST', route('stripe.webhook'), [], [], [], ['HTTP_STRIPE_SIGNATURE' => 'fake'], json_encode(['type' => 'checkout.session.completed']))->assertOk();
+
+    $summary = app(StripeSettings::class)->summary();
+    expect($summary['webhookRejectedAt'])->not->toBeNull()
+        ->and($summary['webhookReceivedAt'])->not->toBeNull();
+
+    app(StripeSettings::class)->save(null, 'whsec_new1111');
+
+    $summary = app(StripeSettings::class)->summary();
+    expect($summary['webhookRejectedAt'])->toBeNull()
+        ->and($summary['webhookReceivedAt'])->toBeNull();
+});
+
+test('requests without a stripe signature do not count as rejected deliveries', function () {
+    $this->post(route('stripe.webhook'))->assertStatus(400);
+
+    expect(app(StripeSettings::class)->summary()['webhookRejectedAt'])->toBeNull();
 });

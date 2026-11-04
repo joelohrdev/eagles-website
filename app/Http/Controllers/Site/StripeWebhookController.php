@@ -9,6 +9,7 @@ use App\Contracts\PaymentGateway;
 use App\Exceptions\InvalidWebhookSignature;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\StripeSettings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -19,6 +20,7 @@ class StripeWebhookController extends Controller
         private MarkOrderPaid $markOrderPaid,
         private CancelPendingOrder $cancelPendingOrder,
         private RefundOrder $refundOrder,
+        private StripeSettings $stripe,
     ) {}
 
     /**
@@ -29,8 +31,15 @@ class StripeWebhookController extends Controller
         try {
             $event = $this->gateway->parseWebhook($request->getContent(), $request->header('Stripe-Signature'));
         } catch (InvalidWebhookSignature) {
+            /** Only a request that carries Stripe's header can mean the signing secret is wrong; anything else is noise. */
+            if ($request->hasHeader('Stripe-Signature')) {
+                $this->stripe->recordWebhook(verified: false);
+            }
+
             return response('Invalid signature', 400);
         }
+
+        $this->stripe->recordWebhook(verified: true);
 
         if (! $event->identifiesOrder()) {
             return response('Ignored', 200);

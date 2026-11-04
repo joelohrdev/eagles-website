@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { Check, Copy, ExternalLink } from '@lucide/vue';
-import { ref } from 'vue';
+import {
+    Check,
+    CircleAlert,
+    CircleCheck,
+    CircleDashed,
+    Copy,
+    ExternalLink,
+} from '@lucide/vue';
+import { computed, ref } from 'vue';
 import PaymentSettingController from '@/actions/App/Http/Controllers/Admin/PaymentSettingController';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -16,6 +23,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatDateTime } from '@/lib/format';
 import { edit as paymentsEdit } from '@/routes/admin/payments';
 
 type Credential = {
@@ -23,11 +31,14 @@ type Credential = {
     source: 'dashboard' | 'env' | null;
 };
 
-defineProps<{
+const props = defineProps<{
     stripe: {
         secretKey: Credential;
         webhookSecret: Credential;
         testMode: boolean;
+        keyCheckedAt: string | null;
+        webhookReceivedAt: string | null;
+        webhookRejectedAt: string | null;
     };
     webhookUrl: string;
     webhookEvents: string[];
@@ -57,6 +68,20 @@ const sourceLabel = (credential: Credential): string =>
         : credential.source === 'env'
           ? 'From the server’s .env file'
           : 'Not set';
+
+/** A rejection newer than the last good delivery means the saved signing secret is wrong. */
+const webhookFailing = computed(() => {
+    const { webhookReceivedAt, webhookRejectedAt } = props.stripe;
+
+    if (!webhookRejectedAt) {
+        return false;
+    }
+
+    return (
+        !webhookReceivedAt ||
+        new Date(webhookRejectedAt) > new Date(webhookReceivedAt)
+    );
+});
 </script>
 
 <template>
@@ -81,8 +106,8 @@ const sourceLabel = (credential: Credential): string =>
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <dl class="grid gap-3 text-sm sm:grid-cols-2">
-                    <div>
+                <dl class="grid gap-6 text-sm sm:grid-cols-2">
+                    <div class="space-y-1">
                         <dt class="text-muted-foreground">Stripe key</dt>
                         <dd class="font-mono">
                             {{ stripe.secretKey.masked ?? '—' }}
@@ -90,8 +115,49 @@ const sourceLabel = (credential: Credential): string =>
                         <dd class="text-xs text-muted-foreground">
                             {{ sourceLabel(stripe.secretKey) }}
                         </dd>
+                        <dd
+                            v-if="
+                                stripe.secretKey.masked && stripe.keyCheckedAt
+                            "
+                            class="flex items-start gap-1.5 pt-1 text-green-700 dark:text-green-400"
+                        >
+                            <CircleCheck class="mt-0.5 size-4 shrink-0" />
+                            <span>
+                                Stripe accepted this key<br />
+                                <span class="text-xs text-muted-foreground">
+                                    Checked
+                                    {{ formatDateTime(stripe.keyCheckedAt) }}
+                                </span>
+                            </span>
+                        </dd>
+                        <dd
+                            v-else-if="stripe.secretKey.masked"
+                            class="flex items-start gap-1.5 pt-1 text-muted-foreground"
+                        >
+                            <CircleDashed class="mt-0.5 size-4 shrink-0" />
+                            <span>Not checked with Stripe yet</span>
+                        </dd>
+                        <dd v-if="stripe.secretKey.masked" class="pt-2">
+                            <Form
+                                v-bind="PaymentSettingController.check.form()"
+                                v-slot="{ processing }"
+                            >
+                                <Button
+                                    type="submit"
+                                    variant="outline"
+                                    size="sm"
+                                    :disabled="processing"
+                                >
+                                    {{
+                                        processing
+                                            ? 'Checking…'
+                                            : 'Check with Stripe'
+                                    }}
+                                </Button>
+                            </Form>
+                        </dd>
                     </div>
-                    <div>
+                    <div class="space-y-1">
                         <dt class="text-muted-foreground">
                             Webhook signing secret
                         </dt>
@@ -101,6 +167,56 @@ const sourceLabel = (credential: Credential): string =>
                         <dd class="text-xs text-muted-foreground">
                             {{ sourceLabel(stripe.webhookSecret) }}
                         </dd>
+                        <template v-if="stripe.webhookSecret.masked">
+                            <dd
+                                v-if="webhookFailing"
+                                class="flex items-start gap-1.5 pt-1 text-destructive"
+                            >
+                                <CircleAlert class="mt-0.5 size-4 shrink-0" />
+                                <span>
+                                    Stripe reached this site, but the signing
+                                    secret didn’t match. Copy it again from the
+                                    destination’s page in Stripe and save it in
+                                    Step 3.<br />
+                                    <span class="text-xs text-muted-foreground">
+                                        {{
+                                            formatDateTime(
+                                                stripe.webhookRejectedAt,
+                                            )
+                                        }}
+                                    </span>
+                                </span>
+                            </dd>
+                            <dd
+                                v-else-if="stripe.webhookReceivedAt"
+                                class="flex items-start gap-1.5 pt-1 text-green-700 dark:text-green-400"
+                            >
+                                <CircleCheck class="mt-0.5 size-4 shrink-0" />
+                                <span>
+                                    Receiving events from Stripe<br />
+                                    <span class="text-xs text-muted-foreground">
+                                        Last one
+                                        {{
+                                            formatDateTime(
+                                                stripe.webhookReceivedAt,
+                                            )
+                                        }}
+                                    </span>
+                                </span>
+                            </dd>
+                            <dd
+                                v-else
+                                class="flex items-start gap-1.5 pt-1 text-muted-foreground"
+                            >
+                                <CircleDashed class="mt-0.5 size-4 shrink-0" />
+                                <span>
+                                    Waiting for the first event. Stripe sends
+                                    one when someone completes or abandons a
+                                    checkout, so this confirms itself after the
+                                    next order.
+                                </span>
+                            </dd>
+                        </template>
                     </div>
                 </dl>
                 <p
@@ -273,8 +389,9 @@ const sourceLabel = (credential: Credential): string =>
             <CardHeader>
                 <CardTitle>Step 3: Paste both here</CardTitle>
                 <CardDescription>
-                    Both are stored encrypted. Leave a field blank to keep the
-                    value already saved.
+                    Both are stored encrypted. The key is checked with Stripe
+                    before it’s saved. Leave a field blank to keep the value
+                    already in use.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -294,6 +411,15 @@ const sourceLabel = (credential: Credential): string =>
                             placeholder="rk_live_…"
                             class="font-mono"
                         />
+                        <p
+                            v-if="stripe.secretKey.masked"
+                            class="text-xs text-muted-foreground"
+                        >
+                            In use now:
+                            <span class="font-mono">{{
+                                stripe.secretKey.masked
+                            }}</span>
+                        </p>
                         <InputError :message="errors.secret_key" />
                     </div>
                     <div class="grid gap-2">
@@ -308,6 +434,15 @@ const sourceLabel = (credential: Credential): string =>
                             placeholder="whsec_…"
                             class="font-mono"
                         />
+                        <p
+                            v-if="stripe.webhookSecret.masked"
+                            class="text-xs text-muted-foreground"
+                        >
+                            In use now:
+                            <span class="font-mono">{{
+                                stripe.webhookSecret.masked
+                            }}</span>
+                        </p>
                         <InputError :message="errors.webhook_secret" />
                     </div>
                     <Button type="submit" :disabled="processing">

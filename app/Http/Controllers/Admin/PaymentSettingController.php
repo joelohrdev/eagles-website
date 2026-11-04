@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdatePaymentSettingsRequest;
+use App\Services\Payments\StripeKeyChecker;
 use App\Services\StripeSettings;
 use App\Support\Payments\WebhookEvent;
 use Illuminate\Http\RedirectResponse;
@@ -32,6 +33,25 @@ class PaymentSettingController extends Controller
         $this->stripe->save($request->validated('secret_key'), $request->validated('webhook_secret'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Stripe keys saved.')]);
+
+        return to_route('admin.payments.edit');
+    }
+
+    /**
+     * Ask Stripe whether the key in use right now (saved here or from .env) still works.
+     */
+    public function check(StripeKeyChecker $checker): RedirectResponse
+    {
+        $key = $this->stripe->secretKey();
+        $problem = $key === null ? __('There is no key to check yet. Paste one in Step 3.') : $checker->problemWith($key);
+
+        if ($problem === null) {
+            $this->stripe->markKeyChecked();
+        }
+
+        Inertia::flash('toast', $problem === null
+            ? ['type' => 'success', 'message' => __('Stripe accepted the key.')]
+            : ['type' => 'error', 'message' => $problem]);
 
         return to_route('admin.payments.edit');
     }

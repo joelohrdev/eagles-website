@@ -80,6 +80,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
         Route::get('payments', [PaymentSettingController::class, 'edit'])->name('payments.edit');
         Route::put('payments', [PaymentSettingController::class, 'update'])->name('payments.update');
+        Route::post('payments/check', [PaymentSettingController::class, 'check'])->name('payments.check');
 
         Route::get('navigation', [NavigationController::class, 'index'])->name('navigation.index');
         Route::post('navigation/items', [NavigationController::class, 'store'])->name('navigation.items.store');
