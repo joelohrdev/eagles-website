@@ -19,7 +19,7 @@ const props = withDefaults(
         removeName?: string;
         error?: string;
         hint?: string;
-        aspect?: 'video' | 'square' | 'share';
+        aspect?: 'video' | 'square' | 'share' | 'logo';
     }>(),
     {
         label: 'Image',
@@ -51,6 +51,7 @@ const aspectClass = computed(
             video: 'aspect-video',
             square: 'aspect-square',
             share: 'aspect-[1200/630]',
+            logo: 'aspect-[2/1]',
         })[props.aspect],
 );
 
@@ -98,7 +99,12 @@ function clear() {
                     <img
                         :src="previewUrl"
                         alt=""
-                        class="absolute inset-0 size-full object-cover"
+                        class="absolute inset-0 size-full"
+                        :class="
+                            aspect === 'logo'
+                                ? 'object-contain p-4'
+                                : 'object-cover'
+                        "
                     />
                     <div
                         class="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 text-white opacity-0 transition-opacity hover:opacity-100"

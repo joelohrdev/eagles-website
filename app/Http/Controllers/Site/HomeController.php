@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Http\Controllers\Controller;
 use App\Models\Camp;
+use App\Models\Sponsor;
 use App\Models\Tryout;
 use App\Services\ImageUploader;
 use App\Services\PageVisibility;
@@ -85,6 +86,13 @@ class HomeController extends Controller
             'faqs' => $faqs,
             'tryouts' => $tryouts,
             'camps' => $camps,
+            'sponsors' => Sponsor::query()->active()->ordered()->get()
+                ->map(fn (Sponsor $sponsor) => [
+                    'id' => $sponsor->id,
+                    'name' => $sponsor->name,
+                    'website_url' => $sponsor->website_url,
+                    'logo_url' => $sponsor->logo_url,
+                ]),
             'contactEnabled' => $this->pages->isEnabled('contact'),
             'seo' => $this->seo->forRoute('home', [
                 'title' => 'Youth Travel Baseball Teams, Tryouts & Camps',

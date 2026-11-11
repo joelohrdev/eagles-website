@@ -2,6 +2,7 @@
 
 use App\Models\Coach;
 use App\Models\Product;
+use App\Models\Sponsor;
 use App\Models\Team;
 use App\Models\User;
 
@@ -13,6 +14,7 @@ dataset('reorderable lists', [
     'teams' => [Team::class, 'teams'],
     'coaches' => [Coach::class, 'coaches'],
     'products' => [Product::class, 'products'],
+    'sponsors' => [Sponsor::class, 'sponsors'],
 ]);
 
 test('guests cannot reorder a list', function (string $model, string $resource) {

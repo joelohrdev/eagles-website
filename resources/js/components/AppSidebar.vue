@@ -7,6 +7,7 @@ import {
     CreditCard,
     ExternalLink,
     Globe,
+    Handshake,
     Inbox,
     ListTree,
     LayoutGrid,
@@ -44,6 +45,7 @@ import { edit as paymentsEdit } from '@/routes/admin/payments';
 import { index as productsIndex } from '@/routes/admin/products';
 import { index as seoIndex } from '@/routes/admin/seo';
 import { edit as settingsEdit } from '@/routes/admin/settings';
+import { index as sponsorsIndex } from '@/routes/admin/sponsors';
 import { index as teamsIndex } from '@/routes/admin/teams';
 import { index as tryoutsIndex } from '@/routes/admin/tryouts';
 import { index as usersIndex } from '@/routes/admin/users';
@@ -61,6 +63,7 @@ const contentNavItems = computed<NavItem[]>(() => [
     { title: 'Facility Photos', href: facilityIndex(), icon: Building2 },
     { title: 'Products', href: productsIndex(), icon: Package },
     { title: 'Orders', href: ordersIndex(), icon: Receipt },
+    { title: 'Sponsors', href: sponsorsIndex(), icon: Handshake },
     {
         title: 'Contact Inbox',
         href: contactIndex(),

@@ -29,6 +29,18 @@
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
 
+    /* Sponsor logo strip: the track holds the list twice, so -50% is one seamless loop. */
+    --animate-marquee: marquee var(--marquee-duration, 40s) linear infinite;
+
+    @keyframes marquee {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(-50%);
+        }
+    }
+
     --color-background: var(--background);
     --color-foreground: var(--foreground);
 

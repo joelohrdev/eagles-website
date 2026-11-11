@@ -6,6 +6,7 @@ import NavLink from '@/components/site/NavLink.vue';
 import PageHero from '@/components/site/PageHero.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
 import SectionHeading from '@/components/site/SectionHeading.vue';
+import SponsorStrip from '@/components/site/SponsorStrip.vue';
 import YouTubeEmbed from '@/components/site/YouTubeEmbed.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +19,7 @@ import { contact } from '@/routes';
 import { index as campsIndex, show as campShow } from '@/routes/camps';
 import { index as tryoutsIndex, show as tryoutShow } from '@/routes/tryouts';
 import type { NavigationLink, RegistrationState } from '@/types';
+import type { HomeSponsor } from '@/types/sponsors';
 
 type Item = { title: string; description: string | null };
 type Faq = { question: string; answer: string };
@@ -84,6 +86,7 @@ const props = defineProps<{
     faqs: Faq[];
     tryouts: HomeTryout[];
     camps: HomeCamp[];
+    sponsors: HomeSponsor[];
     contactEnabled: boolean;
 }>();
 
@@ -604,6 +607,15 @@ const secondaryCta = computed(() =>
                     </Collapsible>
                 </div>
             </div>
+        </section>
+
+        <section v-if="sponsors.length" class="container-site py-12 md:py-16">
+            <SectionHeading
+                eyebrow="Thank you"
+                title="Our sponsors"
+                align="center"
+            />
+            <SponsorStrip :sponsors="sponsors" class="mt-10" />
         </section>
 
         <section class="bg-sky text-navy">

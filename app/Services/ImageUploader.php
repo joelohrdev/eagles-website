@@ -29,6 +29,10 @@ class ImageUploader
 
     public const int SHARE_HEIGHT = 630;
 
+    public const int LOGO_WIDTH = 600;
+
+    public const int LOGO_HEIGHT = 300;
+
     /**
      * Store a full-size webp plus a thumbnail. Returns the full-size path.
      */
@@ -47,6 +51,24 @@ class ImageUploader
             ->cover(self::THUMB_WIDTH, self::THUMB_HEIGHT)
             ->optimize('webp')
             ->storePubliclyAs("{$directory}/thumbs", $name, self::DISK);
+
+        return "{$directory}/{$name}";
+    }
+
+    /**
+     * Store a logo scaled down to fit a 600×300 box, never cropped, so the
+     * whole mark survives and a transparent background stays transparent.
+     * There is no thumbnail; the stored file is already display-sized.
+     */
+    public function storeLogo(UploadedFile $file, string $directory): string
+    {
+        $name = Str::random(40).'.webp';
+
+        Image::fromUpload($file)
+            ->orient()
+            ->scale(width: self::LOGO_WIDTH, height: self::LOGO_HEIGHT)
+            ->optimize('webp')
+            ->storePubliclyAs($directory, $name, self::DISK);
 
         return "{$directory}/{$name}";
     }

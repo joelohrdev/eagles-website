@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProductVariantController;
 use App\Http\Controllers\Admin\SeoMetaController;
 use App\Http\Controllers\Admin\SiteSettingController;
+use App\Http\Controllers\Admin\SponsorController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\TryoutController;
 use App\Http\Controllers\Admin\TryoutRegistrationController;
@@ -36,6 +37,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     Route::resource('coaches', CoachController::class)->except(['show']);
     Route::post('coaches/reorder', [CoachController::class, 'reorder'])->name('coaches.reorder');
+
+    Route::resource('sponsors', SponsorController::class)->except(['show']);
+    Route::post('sponsors/reorder', [SponsorController::class, 'reorder'])->name('sponsors.reorder');
 
     Route::resource('facility-photos', FacilityPhotoController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::post('facility-photos/reorder', [FacilityPhotoController::class, 'reorder'])->name('facility-photos.reorder');
