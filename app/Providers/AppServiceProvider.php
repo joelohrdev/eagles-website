@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\PageVisibility;
 use App\Services\Payments\FakeGateway;
 use App\Services\Payments\StripeGateway;
+use App\Services\Payments\UnavailableGateway;
 use App\Services\SiteSettings;
 use App\Services\StripeSettings;
 use App\Services\TryoutAvailability;
@@ -37,8 +38,13 @@ class AppServiceProvider extends ServiceProvider
             $stripe = $this->app->make(StripeSettings::class);
             $secret = $stripe->secretKey();
 
-            if (blank($secret) || $this->app->runningUnitTests()) {
+            if ($this->app->runningUnitTests() || (blank($secret) && $this->app->environment('local', 'testing'))) {
                 return new FakeGateway;
+            }
+
+            /** Never fall back to fake payments on a real site: switch payments off instead. */
+            if (blank($secret)) {
+                return new UnavailableGateway;
             }
 
             return new StripeGateway(

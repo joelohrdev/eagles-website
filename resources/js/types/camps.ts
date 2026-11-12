@@ -156,6 +156,8 @@ export type AdminCampRegistration = {
     order_id: number | null;
     age_group: string | null;
     schedule: string[];
+    discount_label: string | null;
+    discount: number;
     registered_at: string;
     expires_at: string | null;
 };

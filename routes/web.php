@@ -34,6 +34,12 @@ Route::get('teams', [TeamController::class, 'index'])->middleware('page:teams')-
 Route::get('facility', FacilityController::class)->middleware('page:facility')->name('facility');
 Route::get('coaches', [CoachController::class, 'index'])->middleware('page:coaches')->name('coaches.index');
 
+/*
+ * Every throttle has its own prefix (third argument): without one, all plain
+ * throttle:x,y limits share a single counter per visitor, so clicking around
+ * one form could lock someone out of another.
+ */
+
 /**
  * Camp previews (drafts too) for staff, or anyone with the camp's passcode.
  * Outside page:camps so they work while the Camps page is switched off.
@@ -41,7 +47,7 @@ Route::get('coaches', [CoachController::class, 'index'])->middleware('page:coach
 Route::prefix('camps/{camp}/preview')->name('camps.preview')->group(function () {
     Route::get('/', [CampPreviewController::class, 'show']);
     Route::get('register', [CampPreviewController::class, 'register'])->name('.register');
-    Route::post('quote', [CampPreviewController::class, 'quote'])->middleware('throttle:60,1')->name('.quote');
+    Route::post('quote', [CampPreviewController::class, 'quote'])->middleware('throttle:60,1,camp-preview-quote')->name('.quote');
     Route::post('unlock', [CampPreviewController::class, 'unlock'])->middleware('throttle:camp-preview-unlock')->name('.unlock');
 });
 
@@ -50,10 +56,10 @@ Route::middleware('page:camps')->group(function () {
     Route::get('camps/{camp}', [CampController::class, 'show'])->name('camps.show');
     Route::get('camps/{camp}/register', [CampRegistrationController::class, 'create'])->name('camps.register');
     Route::post('camps/{camp}/register', [CampRegistrationController::class, 'store'])
-        ->middleware('throttle:10,1')
+        ->middleware('throttle:10,1,camp-register')
         ->name('camps.register.store');
     Route::post('camps/{camp}/quote', [CampRegistrationController::class, 'quote'])
-        ->middleware('throttle:30,1')
+        ->middleware('throttle:30,1,camp-quote')
         ->name('camps.quote');
 });
 
@@ -61,7 +67,7 @@ Route::get('tryouts', [TryoutController::class, 'index'])->name('tryouts.index')
 Route::get('tryouts/{tryout}', [TryoutController::class, 'show'])->name('tryouts.show');
 Route::get('tryouts/{tryout}/register', [TryoutRegistrationController::class, 'create'])->name('tryouts.register');
 Route::post('tryouts/{tryout}/register', [TryoutRegistrationController::class, 'store'])
-    ->middleware('throttle:10,1')
+    ->middleware('throttle:10,1,tryout-register')
     ->name('tryouts.register.store');
 
 /** The store owns the cart and checkout: switching Merch off takes all three down. */
@@ -75,8 +81,8 @@ Route::middleware('page:merch')->group(function () {
     Route::delete('cart/items/{variant}', [CartController::class, 'destroy'])->name('cart.items.destroy');
 
     Route::get('checkout', [CheckoutController::class, 'create'])->name('checkout.create');
-    Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1')->name('checkout.store');
-    Route::post('checkout/quote', [CheckoutController::class, 'quote'])->middleware('throttle:30,1')->name('checkout.quote');
+    Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1,checkout')->name('checkout.store');
+    Route::post('checkout/quote', [CheckoutController::class, 'quote'])->middleware('throttle:30,1,checkout-quote')->name('checkout.quote');
 });
 
 /** Camp payments land here too, so these stay up when Merch is switched off. */
@@ -89,13 +95,13 @@ Route::get('checkout/{order:number}/cancel', [CheckoutController::class, 'cancel
 
 Route::middleware('page:contact')->group(function () {
     Route::get('contact', [ContactController::class, 'create'])->name('contact');
-    Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:5,1')->name('contact.store');
+    Route::post('contact', [ContactController::class, 'store'])->middleware('throttle:5,1,contact')->name('contact.store');
 });
 
 Route::get('preview/{page}/{version}', PagePreviewController::class)
     ->whereIn('page', array_keys(PageVisibility::PAGES))
     ->whereNumber('version')
-    ->middleware(['signed', 'throttle:30,1'])
+    ->middleware(['signed', 'throttle:30,1,page-preview'])
     ->name('page-preview');
 
 Route::post('stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
@@ -122,7 +128,7 @@ Route::permanentRedirect('about-us/index.htm', '/coaches');
 Route::middleware('guest')->group(function () {
     Route::get('invitations/{token}', [InvitationAcceptController::class, 'show'])->name('invitations.accept');
     Route::post('invitations/{token}', [InvitationAcceptController::class, 'store'])
-        ->middleware('throttle:10,1')
+        ->middleware('throttle:10,1,invitation-accept')
         ->name('invitations.register');
 });
 

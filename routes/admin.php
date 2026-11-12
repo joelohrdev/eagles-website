@@ -48,6 +48,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::resource('camps', CampController::class)->except(['show']);
     Route::get('camps/{camp}/registrations', [CampRegistrationController::class, 'index'])->name('camps.registrations.index');
     Route::get('camps/{camp}/registrations/export', [CampRegistrationController::class, 'export'])->name('camps.registrations.export');
+    Route::get('camps/{camp}/registrations/roster', [CampRegistrationController::class, 'roster'])->name('camps.registrations.roster');
     Route::delete('camps/{camp}/registrations/{registration}', [CampRegistrationController::class, 'destroy'])
         ->scopeBindings()
         ->name('camps.registrations.destroy');

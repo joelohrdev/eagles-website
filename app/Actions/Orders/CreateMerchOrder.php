@@ -3,6 +3,7 @@
 namespace App\Actions\Orders;
 
 use App\Actions\Coupons\ResolveCoupon;
+use App\Contracts\PaymentGateway;
 use App\Enums\Fulfillment;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
@@ -29,6 +30,7 @@ class CreateMerchOrder
     public function __construct(
         private Cart $cart,
         private ResolveCoupon $resolveCoupon,
+        private PaymentGateway $gateway,
     ) {}
 
     /**
@@ -103,6 +105,10 @@ class CreateMerchOrder
             $fulfillment = Fulfillment::from($customer['fulfillment']);
             $coupon = $this->resolveCoupon->handle($customer['coupon_code'] ?? null, OrderType::Merch, lock: true);
             $price = $this->price($lines, $coupon, $fulfillment);
+
+            if ($price['total'] > 0 && ! $this->gateway->isAvailable()) {
+                throw ValidationException::withMessages(['cart' => __('Online payment isn’t available right now. Please contact us to order.')]);
+            }
 
             $order = Order::query()->create([
                 'type' => OrderType::Merch,

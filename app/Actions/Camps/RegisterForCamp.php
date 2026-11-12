@@ -4,6 +4,7 @@ namespace App\Actions\Camps;
 
 use App\Actions\Orders\CreateCheckoutSession;
 use App\Actions\Orders\MarkOrderPaid;
+use App\Contracts\PaymentGateway;
 use App\Enums\Fulfillment;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
@@ -20,6 +21,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -29,10 +31,18 @@ use Illuminate\Validation\ValidationException;
  */
 class RegisterForCamp
 {
+    /**
+     * Unpaid holds one email can have on a camp at once. Holds take a spot
+     * before payment, so without a cap one person (or a script) could fill a
+     * capped camp without paying. Two allows siblings signed up together.
+     */
+    public const int MAX_UNPAID_HOLDS_PER_EMAIL = 2;
+
     public function __construct(
         private CreateCheckoutSession $createCheckoutSession,
         private QuoteCampSelection $quoteCampSelection,
         private MarkOrderPaid $markOrderPaid,
+        private PaymentGateway $gateway,
         private SiteSettings $settings,
     ) {}
 
@@ -61,6 +71,14 @@ class RegisterForCamp
             }
 
             $quote = $this->quoteCampSelection->handle($locked, $dayIds, $ageGroupId, $couponCode, lockCoupon: true);
+
+            if ($quote->total() > 0) {
+                if (! $this->gateway->isAvailable()) {
+                    throw ValidationException::withMessages(['registration' => __('Online payment isn’t available right now. Please contact us to register.')]);
+                }
+
+                $this->ensureHoldAllowed($locked, (string) $attributes['email']);
+            }
             $playerName = trim($attributes['player_first_name'].' '.$attributes['player_last_name']);
             $order = null;
 
@@ -133,5 +151,24 @@ class RegisterForCamp
         );
 
         return ['registration' => $registration, 'checkout' => $checkout];
+    }
+
+    /**
+     * @throws ValidationException when this email already has the maximum unpaid holds on the camp.
+     */
+    private function ensureHoldAllowed(Camp $camp, string $email): void
+    {
+        $holds = $camp->registrations()
+            ->where('status', RegistrationStatus::PendingPayment)
+            ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->whereRaw('lower(email) = ?', [Str::lower(trim($email))])
+            ->count();
+
+        if ($holds >= self::MAX_UNPAID_HOLDS_PER_EMAIL) {
+            throw ValidationException::withMessages(['email' => __(
+                'This email already has :count unpaid spots on hold for this camp. Finish paying for them, or wait up to :minutes minutes for the holds to end.',
+                ['count' => $holds, 'minutes' => CampRegistration::PENDING_HOLD_MINUTES],
+            )]);
+        }
     }
 }

@@ -19,12 +19,42 @@ class FakeGateway implements PaymentGateway
     /** @var list<array{order_id: int, session_id: string}> */
     public array $sessions = [];
 
+    /**
+     * Session ids treated as already paid, so closeCheckoutSession() refuses them.
+     *
+     * @var list<string>
+     */
+    public array $paidSessions = [];
+
+    /** @var list<string> */
+    public array $closedSessions = [];
+
+    public function isAvailable(): bool
+    {
+        return true;
+    }
+
     public function createCheckoutSession(Order $order, string $successUrl, string $cancelUrl): CheckoutSession
     {
         $id = 'cs_fake_'.Str::random(16);
         $this->sessions[] = ['order_id' => $order->id, 'session_id' => $id];
 
         return new CheckoutSession(id: $id, url: $successUrl);
+    }
+
+    public function closeCheckoutSession(Order $order): bool
+    {
+        $id = $order->stripe_checkout_session_id;
+
+        if ($id !== null && in_array($id, $this->paidSessions, true)) {
+            return false;
+        }
+
+        if ($id !== null) {
+            $this->closedSessions[] = $id;
+        }
+
+        return true;
     }
 
     public function parseWebhook(string $payload, ?string $signature): WebhookEvent

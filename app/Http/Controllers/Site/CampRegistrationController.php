@@ -10,6 +10,7 @@ use App\Http\Requests\Site\QuoteCampRegistrationRequest;
 use App\Http\Requests\Site\StoreCampRegistrationRequest;
 use App\Models\Camp;
 use App\Services\SeoResolver;
+use App\Services\Turnstile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -21,6 +22,7 @@ class CampRegistrationController extends Controller
     public function __construct(
         private SeoResolver $seo,
         private RegisterForCamp $registerForCamp,
+        private Turnstile $turnstile,
     ) {}
 
     public function create(Camp $camp): Response
@@ -36,6 +38,7 @@ class CampRegistrationController extends Controller
 
         return Inertia::render('site/Camps/Register', [
             'camp' => CampController::presentDetail($camp),
+            'turnstileSiteKey' => $this->turnstile->siteKey(),
             'seo' => $seo->toArray(),
         ]);
     }
@@ -64,7 +67,7 @@ class CampRegistrationController extends Controller
         }
 
         try {
-            $result = $this->registerForCamp->handle($camp, $request->safe()->except(['website']));
+            $result = $this->registerForCamp->handle($camp, $request->safe()->except(['website', Turnstile::RESPONSE_FIELD]));
         } catch (CampRegistrationClosed $e) {
             return back()->withErrors(['registration' => $e->getMessage()])->withInput();
         }

@@ -1,6 +1,10 @@
 <?php
 
 use App\Models\Camp;
+use App\Models\CampAgeGroup;
+use App\Models\CampDayTime;
+use App\Models\CampSession;
+use App\Models\CampSessionDay;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -65,4 +69,37 @@ function validCampRegistration(Camp $camp, array $overrides = []): array
         'emergency_contact_phone' => '630-555-0101',
         'medical_notes' => 'Peanut allergy',
     ], $overrides);
+}
+
+/**
+ * The Thanksgiving camp: Pitching (Nov 21 + 23, $125, $75 a day) and Fielding & Hitting
+ * (Nov 24 + 25, $125, whole session only), $225 for both, two age groups.
+ *
+ * @return array{camp: Camp, young: CampAgeGroup, older: CampAgeGroup, pitching: CampSession, fielding: CampSession}
+ */
+function thanksgivingCamp(?int $olderCapacity = null): array
+{
+    $camp = Camp::factory()->withoutSchedule()->create(['name' => 'Thanksgiving Camp', 'price' => 7500, 'bundle_price' => 22500, 'capacity' => null]);
+    $young = CampAgeGroup::factory()->for($camp)->create(['name' => '8–12U']);
+    $older = CampAgeGroup::factory()->for($camp)->create(['name' => '13–17U', 'capacity' => $olderCapacity]);
+
+    $pitching = CampSession::factory()->for($camp)->singleDays(7500)->create(['name' => 'Pitching', 'price' => 12500]);
+    $fielding = CampSession::factory()->for($camp)->create(['name' => 'Fielding & Hitting', 'price' => 12500]);
+
+    foreach ([[$pitching, '2026-11-21', null], [$pitching, '2026-11-23', null], [$fielding, '2026-11-24', 'Fielding'], [$fielding, '2026-11-25', 'Hitting']] as [$session, $date, $label]) {
+        $day = CampSessionDay::factory()->for($session, 'session')->create(['date' => $date, 'label' => $label]);
+        CampDayTime::factory()->for($day, 'day')->create(['camp_age_group_id' => $young->id, 'starts_at' => '17:30:00', 'ends_at' => '19:00:00']);
+        CampDayTime::factory()->for($day, 'day')->create(['camp_age_group_id' => $older->id, 'starts_at' => '19:00:00', 'ends_at' => '20:30:00']);
+    }
+
+    return ['camp' => $camp->fresh(), 'young' => $young, 'older' => $older, 'pitching' => $pitching, 'fielding' => $fielding];
+}
+
+/**
+ * @param  iterable<CampSession>  $sessions
+ * @return list<int>
+ */
+function dayIdsOf(iterable $sessions): array
+{
+    return collect($sessions)->flatMap(fn (CampSession $session) => $session->days()->pluck('id'))->all();
 }

@@ -10,6 +10,7 @@ import CampRegistrationSummary from '@/components/site/CampRegistrationSummary.v
 import PhoneInput from '@/components/site/PhoneInput.vue';
 import PreviewBanner from '@/components/site/PreviewBanner.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
+import TurnstileWidget from '@/components/site/TurnstileWidget.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -31,7 +32,11 @@ const props = defineProps<{
     preview?: CampPreview | null;
     /** Where selections are priced; the preview uses an admin endpoint that also works for drafts. */
     quoteUrl?: string | null;
+    /** Cloudflare Turnstile site key, or null while the bot check is switched off. */
+    turnstileSiteKey?: string | null;
 }>();
+
+const turnstile = ref<InstanceType<typeof TurnstileWidget> | null>(null);
 
 const campUrl = computed(() => props.preview?.camp_url ?? props.camp.url);
 
@@ -266,6 +271,7 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                 v-bind="CampRegistrationController.store.form(camp.slug)"
                 v-slot="{ errors, processing }"
                 class="space-y-10"
+                @finish="turnstile?.reset()"
             >
                 <p
                     v-if="preview && camp.registration_state !== 'open'"
@@ -675,6 +681,17 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                         tabindex="-1"
                         autocomplete="off"
                     />
+                </div>
+
+                <div
+                    v-if="turnstileSiteKey && !preview"
+                    class="grid content-start gap-2"
+                >
+                    <TurnstileWidget
+                        ref="turnstile"
+                        :site-key="turnstileSiteKey"
+                    />
+                    <InputError :message="errors['cf-turnstile-response']" />
                 </div>
 
                 <CampRegistrationSummary

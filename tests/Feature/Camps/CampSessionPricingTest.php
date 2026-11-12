@@ -9,49 +9,12 @@ use App\Enums\RegistrationStatus;
 use App\Mail\CampRegistrationConfirmation;
 use App\Mail\OrderReceipt;
 use App\Models\Camp;
-use App\Models\CampAgeGroup;
-use App\Models\CampDayTime;
 use App\Models\CampRegistration;
-use App\Models\CampSession;
-use App\Models\CampSessionDay;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\Payments\FakeGateway;
 use Illuminate\Support\Facades\Mail;
-
-/**
- * The Thanksgiving camp: Pitching (Nov 21 + 23, $125, $75 a day) and Fielding & Hitting
- * (Nov 24 + 25, $125, whole session only), $225 for both, two age groups.
- *
- * @return array{camp: Camp, young: CampAgeGroup, older: CampAgeGroup, pitching: CampSession, fielding: CampSession}
- */
-function thanksgivingCamp(?int $olderCapacity = null): array
-{
-    $camp = Camp::factory()->withoutSchedule()->create(['name' => 'Thanksgiving Camp', 'price' => 7500, 'bundle_price' => 22500, 'capacity' => null]);
-    $young = CampAgeGroup::factory()->for($camp)->create(['name' => '8–12U']);
-    $older = CampAgeGroup::factory()->for($camp)->create(['name' => '13–17U', 'capacity' => $olderCapacity]);
-
-    $pitching = CampSession::factory()->for($camp)->singleDays(7500)->create(['name' => 'Pitching', 'price' => 12500]);
-    $fielding = CampSession::factory()->for($camp)->create(['name' => 'Fielding & Hitting', 'price' => 12500]);
-
-    foreach ([[$pitching, '2026-11-21', null], [$pitching, '2026-11-23', null], [$fielding, '2026-11-24', 'Fielding'], [$fielding, '2026-11-25', 'Hitting']] as [$session, $date, $label]) {
-        $day = CampSessionDay::factory()->for($session, 'session')->create(['date' => $date, 'label' => $label]);
-        CampDayTime::factory()->for($day, 'day')->create(['camp_age_group_id' => $young->id, 'starts_at' => '17:30:00', 'ends_at' => '19:00:00']);
-        CampDayTime::factory()->for($day, 'day')->create(['camp_age_group_id' => $older->id, 'starts_at' => '19:00:00', 'ends_at' => '20:30:00']);
-    }
-
-    return ['camp' => $camp->fresh(), 'young' => $young, 'older' => $older, 'pitching' => $pitching, 'fielding' => $fielding];
-}
-
-/**
- * @param  iterable<CampSession>  $sessions
- * @return list<int>
- */
-function dayIdsOf(iterable $sessions): array
-{
-    return collect($sessions)->flatMap(fn (CampSession $session) => $session->days()->pluck('id'))->all();
-}
 
 function eaglesCoupon(): Coupon
 {
@@ -284,4 +247,52 @@ test('a sign-up a coupon covers in full gets one confirmation email', function (
     ]));
 
     Mail::assertQueued(CampRegistrationConfirmation::class, 1);
+});
+
+test('the camp roster and CSV show which registrations used a coupon', function () {
+    Mail::fake();
+    ['camp' => $camp, 'young' => $young, 'pitching' => $pitching] = thanksgivingCamp();
+    eaglesCoupon();
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp, [
+        'days' => dayIdsOf([$pitching]),
+        'camp_age_group_id' => $young->id,
+        'coupon_code' => 'thanks30',
+    ]));
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff)->get(route('admin.camps.registrations.index', $camp))
+        ->assertInertia(fn ($page) => $page
+            ->where('registrations.data.0.discount_label', 'THANKS30')
+            ->where('registrations.data.0.discount', 2500));
+
+    expect($this->actingAs($staff)->get(route('admin.camps.registrations.export', $camp))->streamedContent())
+        ->toContain('"Order number",Discount,"Discount amount",Paid')
+        ->toContain(',THANKS30,25.00,100.00,');
+});
+
+test('the daily roster lists each paid player once per booked day, sorted and filterable', function () {
+    ['camp' => $camp, 'young' => $young, 'older' => $older, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
+    CampRegistration::factory()->for($camp)->forDays($pitching->days)->create(['player_first_name' => 'Ava', 'player_last_name' => 'Young', 'camp_age_group_id' => $young->id]);
+    CampRegistration::factory()->for($camp)->forDays([$pitching->days->first(), ...$fielding->days])->create(['player_first_name' => 'Ollie', 'player_last_name' => 'Older', 'camp_age_group_id' => $older->id]);
+    CampRegistration::factory()->for($camp)->forDays($pitching->days)->pending()->create(['player_first_name' => 'Unpaid', 'camp_age_group_id' => $young->id]);
+    $staff = User::factory()->staff()->create();
+
+    $csv = $this->actingAs($staff)->get(route('admin.camps.registrations.roster', $camp))->streamedContent();
+    $rows = array_map(str_getcsv(...), array_slice(explode("\n", trim($csv)), 1));
+
+    expect(array_map(fn (array $row): string => "{$row[0]} {$row[3]} {$row[4]} {$row[5]}", $rows))->toBe([
+        '2026-11-21 8–12U 5:30 PM – 7:00 PM Ava Young',
+        '2026-11-21 13–17U 7:00 PM – 8:30 PM Ollie Older',
+        '2026-11-23 8–12U 5:30 PM – 7:00 PM Ava Young',
+        '2026-11-24 13–17U 7:00 PM – 8:30 PM Ollie Older',
+        '2026-11-25 13–17U 7:00 PM – 8:30 PM Ollie Older',
+    ])->and($rows[3][2])->toBe('Fielding & Hitting (Fielding)');
+
+    $fieldingOnly = $this->actingAs($staff)->get(route('admin.camps.registrations.roster', ['camp' => $camp, 'session' => $fielding->id]))->streamedContent();
+    expect(substr_count(trim($fieldingOnly), "\n"))->toBe(2)
+        ->and($fieldingOnly)->not->toContain('Ava Young');
+
+    $youngSaturday = $this->actingAs($staff)->get(route('admin.camps.registrations.roster', ['camp' => $camp, 'day' => $pitching->days->first()->id, 'age_group' => $young->id]))->streamedContent();
+    expect(substr_count(trim($youngSaturday), "\n"))->toBe(1)
+        ->and($youngSaturday)->toContain('Ava Young');
 });

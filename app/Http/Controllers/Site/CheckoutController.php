@@ -6,6 +6,7 @@ use App\Actions\Orders\CancelPendingOrder;
 use App\Actions\Orders\CreateCheckoutSession;
 use App\Actions\Orders\CreateMerchOrder;
 use App\Actions\Orders\MarkOrderPaid;
+use App\Contracts\PaymentGateway;
 use App\Enums\Fulfillment;
 use App\Enums\OrderType;
 use App\Http\Controllers\Controller;
@@ -164,11 +165,22 @@ class CheckoutController extends Controller
     /**
      * Customer backed out of Stripe: release the pending order (signed URL).
      */
-    public function cancel(Order $order, CancelPendingOrder $cancelPendingOrder): RedirectResponse
+    public function cancel(Order $order, CancelPendingOrder $cancelPendingOrder, PaymentGateway $gateway): RedirectResponse
     {
         $order->load('campRegistration.camp');
 
         if ($order->isPending()) {
+            /**
+             * Close Stripe's payment page before releasing anything. Otherwise
+             * the customer could still pay it after the spot and coupon use
+             * were given back (overbooking a camp, reusing a one-use coupon).
+             */
+            if (! $gateway->closeCheckoutSession($order)) {
+                Inertia::flash('toast', ['type' => 'info', 'message' => __('Your payment is still being confirmed.')]);
+
+                return redirect()->to(URL::signedRoute('checkout.success', ['order' => $order->number]));
+            }
+
             $cancelPendingOrder->handle($order);
         }
 

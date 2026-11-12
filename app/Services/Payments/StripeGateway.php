@@ -11,6 +11,7 @@ use App\Support\Payments\WebhookEvent;
 use Illuminate\Support\Str;
 use Stripe\Charge;
 use Stripe\Checkout\Session;
+use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
 use Stripe\Webhook;
@@ -19,6 +20,11 @@ use UnexpectedValueException;
 class StripeGateway implements PaymentGateway
 {
     public function __construct(private StripeClient $stripe, private string $webhookSecret) {}
+
+    public function isAvailable(): bool
+    {
+        return true;
+    }
 
     public function createCheckoutSession(Order $order, string $successUrl, string $cancelUrl): CheckoutSession
     {
@@ -74,6 +80,27 @@ class StripeGateway implements PaymentGateway
             'name' => Str::limit($order->coupon_code ?? 'Discount', 40, ''),
             'metadata' => ['order_number' => $order->number],
         ])->id;
+    }
+
+    public function closeCheckoutSession(Order $order): bool
+    {
+        if (blank($order->stripe_checkout_session_id)) {
+            return true;
+        }
+
+        try {
+            $session = $this->stripe->checkout->sessions->retrieve($order->stripe_checkout_session_id);
+
+            return match ($session->status) {
+                'open' => $this->stripe->checkout->sessions->expire($session->id)->status === 'expired',
+                'expired' => true,
+                default => false,
+            };
+        } catch (ApiErrorException $e) {
+            report($e);
+
+            return false;
+        }
     }
 
     public function parseWebhook(string $payload, ?string $signature): WebhookEvent

@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { Head, Link, router, setLayoutProps } from '@inertiajs/vue3';
-import { ArrowLeft, Download, Search } from '@lucide/vue';
-import { ref } from 'vue';
+import {
+    ArrowLeft,
+    ChevronDown,
+    Download,
+    Search,
+    TicketPercent,
+} from '@lucide/vue';
+import { ref, watch } from 'vue';
 import ConfirmDelete from '@/components/admin/ConfirmDelete.vue';
 import EmptyState from '@/components/admin/EmptyState.vue';
 import Pagination from '@/components/admin/Pagination.vue';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -24,12 +36,13 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, money } from '@/lib/format';
 import { edit, index } from '@/routes/admin/camps';
 import {
     destroy,
     exportMethod,
     index as registrationsIndex,
+    roster,
 } from '@/routes/admin/camps/registrations';
 import { show as orderShow } from '@/routes/admin/orders';
 import type { Paginated } from '@/types';
@@ -51,10 +64,12 @@ const props = defineProps<{
         q: string;
         status: string;
         day: number | null;
+        session: number | null;
         age_group: number | null;
     };
     statuses: { value: string; label: string }[];
     days: { id: number; label: string }[];
+    sessions: { id: number; name: string }[];
     ageGroups: { id: number; name: string }[];
 }>();
 
@@ -69,16 +84,27 @@ setLayoutProps({
 const q = ref(props.filters.q);
 const status = ref(props.filters.status || 'all');
 const day = ref(props.filters.day?.toString() ?? 'all');
+const session = ref(props.filters.session?.toString() ?? 'all');
 const ageGroup = ref(props.filters.age_group?.toString() ?? 'all');
 
 const filterQuery = () => ({
     q: q.value || undefined,
     status: status.value === 'all' ? undefined : status.value,
     day: day.value === 'all' ? undefined : day.value,
+    session: session.value === 'all' ? undefined : session.value,
     age_group: ageGroup.value === 'all' ? undefined : ageGroup.value,
 });
 
+/** Search applies as you type (after a short pause) or on Enter; the dropdowns apply on change. */
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(q, () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 350);
+});
+
 function applyFilters() {
+    clearTimeout(searchTimer);
     router.get(registrationsIndex(props.camp.slug).url, filterQuery(), {
         preserveState: true,
         preserveScroll: true,
@@ -88,6 +114,9 @@ function applyFilters() {
 
 const exportUrl = () =>
     exportMethod(props.camp.slug, { query: filterQuery() }).url;
+
+/** One row per player per booked day, for the camp lead's daily sign-in sheets. */
+const rosterUrl = () => roster(props.camp.slug, { query: filterQuery() }).url;
 </script>
 
 <template>
@@ -106,18 +135,51 @@ const exportUrl = () =>
                     :description="`${camp.starts_at ? formatDateTime(camp.starts_at) : 'Dates TBD'} · ${camp.paid_count} paid${camp.spots_remaining !== null ? ` · ${camp.spots_remaining} spots left` : ''}`"
                 />
             </div>
-            <Button as-child variant="outline">
-                <a :href="exportUrl()"
-                    ><Download class="size-4" /> Export CSV</a
-                >
-            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                    <Button variant="outline"
+                        ><Download class="size-4" /> Export CSV
+                        <ChevronDown class="size-4"
+                    /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-72">
+                    <DropdownMenuItem as-child>
+                        <a
+                            :href="rosterUrl()"
+                            class="flex flex-col items-start"
+                        >
+                            <span class="font-medium">Daily roster</span>
+                            <span class="text-xs text-muted-foreground"
+                                >One row per player per day, sorted by day,
+                                session and age group. Paid players unless you
+                                pick a status.</span
+                            >
+                        </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem as-child>
+                        <a
+                            :href="exportUrl()"
+                            class="flex flex-col items-start"
+                        >
+                            <span class="font-medium">Registrations</span>
+                            <span class="text-xs text-muted-foreground"
+                                >One row per registration, with payment and
+                                coupon details.</span
+                            >
+                        </a>
+                    </DropdownMenuItem>
+                    <p class="px-2 pt-1 pb-2 text-xs text-muted-foreground">
+                        Both use the filters on this page.
+                    </p>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
 
         <form
-            class="mb-4 flex flex-wrap items-end gap-3"
+            class="mb-4 grid gap-3 sm:grid-cols-2 lg:flex lg:items-center"
             @submit.prevent="applyFilters"
         >
-            <div class="relative w-full max-w-xs">
+            <div class="relative sm:col-span-2 lg:min-w-48 lg:flex-1">
                 <Search
                     class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
                 />
@@ -129,7 +191,7 @@ const exportUrl = () =>
                 />
             </div>
             <Select v-model="status" @update:model-value="applyFilters">
-                <SelectTrigger class="w-44"
+                <SelectTrigger class="w-full lg:w-40"
                     ><SelectValue placeholder="All statuses"
                 /></SelectTrigger>
                 <SelectContent>
@@ -143,11 +205,29 @@ const exportUrl = () =>
                 </SelectContent>
             </Select>
             <Select
+                v-if="sessions.length > 1"
+                v-model="session"
+                @update:model-value="applyFilters"
+            >
+                <SelectTrigger class="w-full lg:w-44"
+                    ><SelectValue placeholder="All sessions"
+                /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All sessions</SelectItem>
+                    <SelectItem
+                        v-for="s in sessions"
+                        :key="s.id"
+                        :value="s.id.toString()"
+                        >{{ s.name }}</SelectItem
+                    >
+                </SelectContent>
+            </Select>
+            <Select
                 v-if="days.length > 1"
                 v-model="day"
                 @update:model-value="applyFilters"
             >
-                <SelectTrigger class="w-56"
+                <SelectTrigger class="w-full lg:w-52"
                     ><SelectValue placeholder="All days"
                 /></SelectTrigger>
                 <SelectContent>
@@ -165,7 +245,7 @@ const exportUrl = () =>
                 v-model="ageGroup"
                 @update:model-value="applyFilters"
             >
-                <SelectTrigger class="w-40"
+                <SelectTrigger class="w-full lg:w-40"
                     ><SelectValue placeholder="All age groups"
                 /></SelectTrigger>
                 <SelectContent>
@@ -178,14 +258,17 @@ const exportUrl = () =>
                     >
                 </SelectContent>
             </Select>
-            <Button type="submit" variant="secondary">Filter</Button>
         </form>
 
         <EmptyState
             v-if="registrations.data.length === 0"
             title="No registrations"
             :description="
-                filters.q || filters.status || filters.day || filters.age_group
+                filters.q ||
+                filters.status ||
+                filters.day ||
+                filters.session ||
+                filters.age_group
                     ? 'No registrations match your filters.'
                     : 'Nobody has registered for this camp yet.'
             "
@@ -294,6 +377,15 @@ const exportUrl = () =>
                                 >
                                     {{ registration.order_number }}
                                 </Link>
+                                <span
+                                    v-if="registration.discount_label"
+                                    class="mt-1 inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-sky-dark"
+                                    :title="`${registration.discount_label} took ${money(registration.discount)} off this order`"
+                                >
+                                    <TicketPercent class="size-3.5" />
+                                    {{ registration.discount_label }}
+                                    · −{{ money(registration.discount) }}
+                                </span>
                             </TableCell>
                             <TableCell class="text-sm whitespace-nowrap">{{
                                 formatDateTime(registration.registered_at)

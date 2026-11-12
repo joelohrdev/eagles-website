@@ -4,6 +4,8 @@ namespace App\Http\Requests\Site;
 
 use App\Http\Requests\Concerns\NormalizesPhoneNumbers;
 use App\Models\Camp;
+use App\Rules\PassesTurnstile;
+use App\Services\Turnstile;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -44,6 +46,10 @@ class StoreCampRegistrationRequest extends FormRequest
             'medical_notes' => ['nullable', 'string', 'max:1000'],
             'website' => ['nullable', 'string', 'max:255'],
             ...QuoteCampRegistrationRequest::selectionRules(),
+            /** A paid sign-up holds a spot before payment, so bots must not be able to fill a camp. */
+            ...app(Turnstile::class)->isEnabled() ? [
+                Turnstile::RESPONSE_FIELD => ['required', 'string', new PassesTurnstile($this->ip())],
+            ] : [],
         ];
     }
 
@@ -52,7 +58,10 @@ class StoreCampRegistrationRequest extends FormRequest
      */
     public function messages(): array
     {
-        return $this->phoneMessages('phone', 'emergency_contact_phone');
+        return [
+            ...$this->phoneMessages('phone', 'emergency_contact_phone'),
+            Turnstile::RESPONSE_FIELD.'.required' => 'Please confirm you are not a robot and try again.',
+        ];
     }
 
     /**
