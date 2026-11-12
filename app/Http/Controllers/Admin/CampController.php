@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Camps\QuoteCampSelection;
+use App\Actions\Camps\SyncCampCoaches;
 use App\Actions\Camps\SyncCampSchedule;
 use App\Actions\Seo\SyncSeoMeta;
 use App\Http\Controllers\Controller;
@@ -12,6 +13,7 @@ use App\Http\Requests\Admin\UpdateCampRequest;
 use App\Http\Requests\Site\QuoteCampRegistrationRequest;
 use App\Models\Camp;
 use App\Models\CampAgeGroup;
+use App\Models\CampCoach;
 use App\Models\CampDayTime;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
@@ -30,6 +32,7 @@ class CampController extends Controller
         private ImageUploader $images,
         private SyncSeoMeta $syncSeoMeta,
         private SyncCampSchedule $syncCampSchedule,
+        private SyncCampCoaches $syncCampCoaches,
     ) {}
 
     public function index(): Response
@@ -72,6 +75,8 @@ class CampController extends Controller
         if ($request->hasFile('image')) {
             $camp->update(['image_path' => $this->images->store($request->file('image'), 'camps')]);
         }
+
+        $this->syncCampCoaches->handle($camp, $request->coaches());
 
         $this->syncSeoMeta->forModel($camp, $request->validated('seo'), $request->file('seo_share_image'));
 
@@ -163,6 +168,7 @@ class CampController extends Controller
                 ...$camp->only(['id', 'name', 'slug', 'description', 'location', 'address', 'age_range', 'starts_at', 'ends_at', 'price', 'capacity', 'registration_opens_at', 'registration_closes_at', 'image_url', 'image_thumbnail_url', 'youtube_url', 'is_published']),
                 'bundle_price_dollars' => self::dollars($camp->bundle_price),
                 'schedule' => self::scheduleForm($camp),
+                'coaches' => $camp->coaches()->get()->map(fn (CampCoach $coach): array => $coach->only(['id', 'name', 'title', 'bio', 'photo_url']))->all(),
                 'registration_state' => $camp->registrationState(),
                 'public_url' => route('camps.show', $camp),
                 'preview_url' => route('admin.camps.preview', $camp),
@@ -229,6 +235,8 @@ class CampController extends Controller
             $this->syncCampSchedule->handle($camp, $request->schedule());
         });
 
+        $this->syncCampCoaches->handle($camp, $request->coaches());
+
         $this->syncSeoMeta->forModel($camp, $request->validated('seo'), $request->file('seo_share_image'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Camp updated.')]);
@@ -243,6 +251,8 @@ class CampController extends Controller
         if ($camp->seoMeta?->share_image_path) {
             $this->images->deleteShareImage($camp->seoMeta->share_image_path);
         }
+
+        $this->syncCampCoaches->delete($camp->coaches()->get());
 
         DB::transaction(function () use ($camp): void {
             /** Registrations go first: their booked days block deleting the camp's schedule. */

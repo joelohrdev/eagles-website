@@ -11,6 +11,7 @@ import {
 } from '@lucide/vue';
 import { computed } from 'vue';
 import CampScheduleList from '@/components/site/CampScheduleList.vue';
+import CoachGrid from '@/components/site/CoachGrid.vue';
 import PreviewBanner from '@/components/site/PreviewBanner.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
 import ShareButtons from '@/components/site/ShareButtons.vue';
@@ -237,6 +238,18 @@ const registrationNote = computed(() => {
                     Schedule
                 </h2>
                 <CampScheduleList :camp="camp" />
+            </div>
+
+            <div v-if="camp.coaches.length > 0">
+                <h2
+                    class="mb-4 font-display text-2xl font-bold tracking-wide text-navy uppercase dark:text-snow"
+                >
+                    Coaches
+                </h2>
+                <CoachGrid
+                    :coaches="camp.coaches"
+                    :fallback-title="`${camp.name} coach`"
+                />
             </div>
 
             <YouTubeEmbed

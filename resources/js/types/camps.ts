@@ -45,6 +45,7 @@ export type CampScheduleSession = {
 export type CampDetail = CampSummary & {
     description: string | null;
     youtube_url: string | null;
+    coaches: CampCoach[];
     bundle_price: number | null;
     age_groups: { id: number; name: string }[];
     sessions: CampScheduleSession[];
@@ -123,6 +124,7 @@ export type AdminCamp = {
     price: number;
     bundle_price_dollars: string | null;
     schedule: CampScheduleForm;
+    coaches: CampCoach[];
     capacity: number | null;
     registration_opens_at: string | null;
     registration_closes_at: string | null;
@@ -165,4 +167,13 @@ export type CampPreview = {
     edit_url: string;
     camp_url: string;
     register_url: string;
+};
+
+/** A coach on one camp's page (separate from the main coaching staff). */
+export type CampCoach = {
+    id: number;
+    name: string;
+    title: string | null;
+    bio: string | null;
+    photo_url: string | null;
 };

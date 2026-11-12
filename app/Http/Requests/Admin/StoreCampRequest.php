@@ -5,6 +5,7 @@ namespace App\Http\Requests\Admin;
 use App\Http\Requests\Concerns\HasSeoRules;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Validator;
 
 /**
@@ -33,6 +34,19 @@ class StoreCampRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
+            /**
+             * Coach rows keep their keys: uploaded photos sit in the files bag
+             * under coaches.{key}.photo, so re-indexing would detach them.
+             */
+            'coaches' => collect($this->input('coaches', []))
+                ->filter(fn ($coach, $key): bool => is_array($coach) && (
+                    filled($coach['id'] ?? null)
+                    || filled($coach['name'] ?? null)
+                    || filled($coach['title'] ?? null)
+                    || filled($coach['bio'] ?? null)
+                    || $this->hasFile("coaches.{$key}.photo")
+                ))
+                ->all(),
             'age_groups' => collect($this->input('age_groups', []))
                 ->filter(fn ($group): bool => is_array($group) && (filled($group['name'] ?? null) || filled($group['capacity'] ?? null)))
                 ->values()
@@ -113,6 +127,14 @@ class StoreCampRequest extends FormRequest
             'sessions.*.days.*.times.*.starts_at' => [$required, 'date_format:H:i'],
             'sessions.*.days.*.times.*.ends_at' => ['nullable', 'date_format:H:i'],
 
+            'coaches' => ['nullable', 'array', 'max:20'],
+            'coaches.*.id' => ['nullable', 'integer'],
+            'coaches.*.name' => ['required', 'string', 'max:100'],
+            'coaches.*.title' => ['nullable', 'string', 'max:100'],
+            'coaches.*.bio' => ['nullable', 'string', 'max:3000'],
+            'coaches.*.photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'coaches.*.remove_photo' => ['nullable', 'boolean'],
+
             ...$this->seoRules(),
         ];
     }
@@ -148,6 +170,10 @@ class StoreCampRequest extends FormRequest
             'sessions.*.days.*.label' => 'day label',
             'sessions.*.days.*.times.*.starts_at' => 'start time',
             'sessions.*.days.*.times.*.ends_at' => 'end time',
+            'coaches.*.name' => 'coach name',
+            'coaches.*.title' => 'coach role',
+            'coaches.*.bio' => 'coach bio',
+            'coaches.*.photo' => 'coach photo',
         ];
     }
 
@@ -281,6 +307,26 @@ class StoreCampRequest extends FormRequest
                 ->filter(fn (array $time): bool => $time['starts_at'] !== null)
                 ->map(fn (array $time): string => "{$day['date']} {$time['starts_at']}"))
             ->min();
+    }
+
+    /**
+     * Validated coach rows in form order, each with its uploaded photo (if any).
+     *
+     * @return list<array{id: int|null, name: string, title: string|null, bio: string|null, photo: UploadedFile|null, remove_photo: bool}>
+     */
+    public function coaches(): array
+    {
+        return collect($this->validated('coaches') ?? [])
+            ->map(fn (array $coach, int|string $key): array => [
+                'id' => isset($coach['id']) ? (int) $coach['id'] : null,
+                'name' => $coach['name'],
+                'title' => $coach['title'] ?? null,
+                'bio' => $coach['bio'] ?? null,
+                'photo' => $this->file("coaches.{$key}.photo"),
+                'remove_photo' => filter_var($coach['remove_photo'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            ])
+            ->values()
+            ->all();
     }
 
     private static function toCents(mixed $dollars): ?int

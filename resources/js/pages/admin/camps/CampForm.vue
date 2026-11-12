@@ -2,6 +2,7 @@
 import { Form } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import CampController from '@/actions/App/Http/Controllers/Admin/CampController';
+import CampCoachesFields from '@/components/admin/camps/CampCoachesFields.vue';
 import CampScheduleFields from '@/components/admin/camps/CampScheduleFields.vue';
 import FormTabs from '@/components/admin/FormTabs.vue';
 import ImageUpload from '@/components/admin/ImageUpload.vue';
@@ -24,7 +25,7 @@ const props = withDefaults(
 );
 
 /** Whether the camp is live now; the save buttons decide what it becomes. */
-/** Bumped after every successful save to reload the schedule with saved ids. */
+/** Bumped after every successful save to reload the schedule and coaches with saved ids. */
 const scheduleVersion = ref(0);
 
 const isPublished = computed(() => props.camp?.is_published ?? false);
@@ -61,6 +62,7 @@ const seoFallback = computed(() => ({
                     fields: ['bundle_price', 'capacity'],
                     prefix: ['sessions', 'age_groups'],
                 },
+                { value: 'coaches', prefix: 'coaches' },
                 {
                     value: 'registration',
                     fields: ['registration_opens_at', 'registration_closes_at'],
@@ -72,6 +74,7 @@ const seoFallback = computed(() => ({
             <TabsList>
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="schedule">Sessions & Schedule</TabsTrigger>
+                <TabsTrigger value="coaches">Coaches</TabsTrigger>
                 <TabsTrigger value="registration">Registration</TabsTrigger>
                 <TabsTrigger value="seo">SEO & Sharing</TabsTrigger>
             </TabsList>
@@ -182,6 +185,14 @@ const seoFallback = computed(() => ({
                     :schedule="camp?.schedule"
                     :bundle-price="camp?.bundle_price_dollars"
                     :capacity="camp?.capacity"
+                    :errors="errors"
+                />
+            </TabsContent>
+
+            <TabsContent value="coaches" class="pt-4">
+                <CampCoachesFields
+                    :key="scheduleVersion"
+                    :coaches="camp?.coaches"
                     :errors="errors"
                 />
             </TabsContent>

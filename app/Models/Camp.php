@@ -122,6 +122,16 @@ class Camp extends Model
     }
 
     /**
+     * Coaches shown on this camp's page, in the order set in the camp form.
+     *
+     * @return HasMany<CampCoach, $this>
+     */
+    public function coaches(): HasMany
+    {
+        return $this->hasMany(CampCoach::class)->orderBy('position')->orderBy('id');
+    }
+
+    /**
      * @return BelongsToMany<Coupon, $this>
      */
     public function coupons(): BelongsToMany

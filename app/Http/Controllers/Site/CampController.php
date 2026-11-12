@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Site;
 use App\Http\Controllers\Controller;
 use App\Models\Camp;
 use App\Models\CampAgeGroup;
+use App\Models\CampCoach;
 use App\Models\CampDayTime;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
@@ -101,6 +102,7 @@ class CampController extends Controller
             ...self::presentSummary($camp),
             'description' => $camp->description,
             'youtube_url' => $camp->youtube_url,
+            'coaches' => $camp->coaches()->get()->map(fn (CampCoach $coach): array => $coach->only(['id', 'name', 'title', 'bio', 'photo_url']))->all(),
             ...self::presentSchedule($camp),
         ];
     }
