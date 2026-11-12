@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Support\Payments\CheckoutSession;
 use App\Support\Payments\WebhookEvent;
+use Illuminate\Support\Str;
 use Stripe\Charge;
 use Stripe\Checkout\Session;
 use Stripe\Exception\SignatureVerificationException;
@@ -28,6 +29,7 @@ class StripeGateway implements PaymentGateway
 
         $session = $this->stripe->checkout->sessions->create([
             ...($expiresAt ? ['expires_at' => $expiresAt->getTimestamp()] : []),
+            ...($order->discount > 0 ? ['discounts' => [['coupon' => $this->oneTimeCoupon($order)]]] : []),
             'mode' => 'payment',
             'customer_email' => $order->email,
             'client_reference_id' => $order->number,
@@ -56,6 +58,22 @@ class StripeGateway implements PaymentGateway
         ]);
 
         return new CheckoutSession(id: $session->id, url: $session->url);
+    }
+
+    /**
+     * Stripe line items can't be negative, so an order's discount travels as a
+     * single-use Stripe coupon for the exact amount, named after the code.
+     */
+    private function oneTimeCoupon(Order $order): string
+    {
+        return $this->stripe->coupons->create([
+            'amount_off' => $order->discount,
+            'currency' => 'usd',
+            'duration' => 'once',
+            'max_redemptions' => 1,
+            'name' => Str::limit($order->coupon_code ?? 'Discount', 40, ''),
+            'metadata' => ['order_number' => $order->number],
+        ])->id;
     }
 
     public function parseWebhook(string $payload, ?string $signature): WebhookEvent

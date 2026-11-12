@@ -12,26 +12,11 @@ use App\Models\CampRegistration;
 use App\Models\Order;
 use Illuminate\Support\Facades\Mail;
 
-function validCampRegistration(array $overrides = []): array
-{
-    return array_merge([
-        'player_first_name' => 'Jamie',
-        'player_last_name' => 'Rivera',
-        'player_birthdate' => now()->subYears(12)->toDateString(),
-        'parent_name' => 'Alex Rivera',
-        'email' => 'alex@example.com',
-        'phone' => '630-555-0100',
-        'emergency_contact_name' => 'Sam Rivera',
-        'emergency_contact_phone' => '630-555-0101',
-        'medical_notes' => 'Peanut allergy',
-    ], $overrides);
-}
-
 test('registering for a free camp confirms immediately and sends emails', function () {
     Mail::fake();
     $camp = Camp::factory()->free()->create();
 
-    $this->post(route('camps.register.store', $camp), validCampRegistration())
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp))
         ->assertRedirect(route('camps.show', ['camp' => $camp, 'registered' => 1]))
         ->assertSessionHasNoErrors();
 
@@ -53,7 +38,7 @@ test('registering for a paid camp creates a pending order and redirects to check
     Mail::fake();
     $camp = Camp::factory()->paid(9900)->create();
 
-    $response = $this->post(route('camps.register.store', $camp), validCampRegistration());
+    $response = $this->post(route('camps.register.store', $camp), validCampRegistration($camp));
 
     $order = Order::query()->firstOrFail();
     $registration = CampRegistration::query()->firstOrFail();
@@ -69,7 +54,7 @@ test('registering for a paid camp creates a pending order and redirects to check
         ->and($order->name)->toBe('Alex Rivera')
         ->and($order->stripe_checkout_session_id)->toStartWith('cs_fake_')
         ->and($order->items)->toHaveCount(1)
-        ->and($order->items->first()->description)->toBe("{$camp->name} — Jamie Rivera")
+        ->and($order->items->first()->description)->toBe("{$camp->name} — {$camp->starts_at->format('D, M j')} — Jamie Rivera")
         ->and($order->items->first()->unit_price)->toBe(9900)
         ->and($registration->order_id)->toBe($order->id)
         ->and($registration->status)->toBe(RegistrationStatus::PendingPayment)
@@ -82,7 +67,7 @@ test('paid camp registration through inertia returns a 409 location response', f
     $camp = Camp::factory()->paid()->create();
 
     $this->withHeaders(['X-Inertia' => 'true'])
-        ->post(route('camps.register.store', $camp), validCampRegistration())
+        ->post(route('camps.register.store', $camp), validCampRegistration($camp))
         ->assertStatus(409)
         ->assertHeader('X-Inertia-Location');
 });
@@ -91,7 +76,7 @@ test('webhook payment marks the camp registration paid and emails a receipt', fu
     Mail::fake();
     $camp = Camp::factory()->paid()->create();
 
-    $this->post(route('camps.register.store', $camp), validCampRegistration());
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp));
     $order = Order::query()->firstOrFail();
 
     $this->postJson(route('stripe.webhook'), [
@@ -120,7 +105,7 @@ test('registration is rejected when the camp is closed, upcoming, or full', func
     };
 
     $this->from(route('camps.register', $camp))
-        ->post(route('camps.register.store', $camp), validCampRegistration())
+        ->post(route('camps.register.store', $camp), validCampRegistration($camp))
         ->assertRedirect(route('camps.register', $camp))
         ->assertSessionHasErrors('registration');
 
@@ -149,7 +134,7 @@ test('registration validates required fields', function () {
         'email' => 'nope',
     ])->assertSessionHasErrors([
         'player_first_name', 'player_last_name', 'player_birthdate', 'parent_name', 'email', 'phone',
-        'emergency_contact_name', 'emergency_contact_phone',
+        'emergency_contact_name', 'emergency_contact_phone', 'days',
     ]);
 
     expect(CampRegistration::count())->toBe(0);
@@ -159,7 +144,7 @@ test('honeypot submissions are silently discarded', function () {
     Mail::fake();
     $camp = Camp::factory()->free()->create();
 
-    $this->post(route('camps.register.store', $camp), validCampRegistration(['website' => 'http://spam.example']))
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp, ['website' => 'http://spam.example']))
         ->assertRedirect(route('camps.show', $camp));
 
     expect(CampRegistration::count())->toBe(0);
@@ -169,7 +154,7 @@ test('honeypot submissions are silently discarded', function () {
 test('mark order paid transitions a camp registration without a webhook', function () {
     Mail::fake();
     $camp = Camp::factory()->paid()->create();
-    $this->post(route('camps.register.store', $camp), validCampRegistration());
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp));
     $order = Order::query()->firstOrFail();
 
     app(MarkOrderPaid::class)->handle($order);
@@ -181,7 +166,7 @@ test('camp registration phones are stored as 999-999-9999', function () {
     Mail::fake();
     $camp = Camp::factory()->free()->create();
 
-    $this->post(route('camps.register.store', $camp), validCampRegistration([
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp, [
         'phone' => '(630) 555-0100',
         'emergency_contact_phone' => '+1 630.555.0101',
     ]))->assertSessionHasNoErrors();
@@ -195,7 +180,7 @@ test('camp registration phones are stored as 999-999-9999', function () {
 test('camp registration phones must have ten digits', function () {
     $camp = Camp::factory()->free()->create();
 
-    $this->post(route('camps.register.store', $camp), validCampRegistration([
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp, [
         'phone' => '555-0100',
         'emergency_contact_phone' => 'n/a',
     ]))->assertSessionHasErrors(['phone', 'emergency_contact_phone']);

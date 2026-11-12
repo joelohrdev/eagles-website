@@ -40,6 +40,9 @@ Route::middleware('page:camps')->group(function () {
     Route::post('camps/{camp}/register', [CampRegistrationController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('camps.register.store');
+    Route::post('camps/{camp}/quote', [CampRegistrationController::class, 'quote'])
+        ->middleware('throttle:30,1')
+        ->name('camps.quote');
 });
 
 Route::get('tryouts', [TryoutController::class, 'index'])->name('tryouts.index');
@@ -61,6 +64,7 @@ Route::middleware('page:merch')->group(function () {
 
     Route::get('checkout', [CheckoutController::class, 'create'])->name('checkout.create');
     Route::post('checkout', [CheckoutController::class, 'store'])->middleware('throttle:10,1')->name('checkout.store');
+    Route::post('checkout/quote', [CheckoutController::class, 'quote'])->middleware('throttle:30,1')->name('checkout.quote');
 });
 
 /** Camp payments land here too, so these stay up when Merch is switched off. */

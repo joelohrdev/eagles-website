@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Form, Link } from '@inertiajs/vue3';
-import { ChevronLeft, Lock } from '@lucide/vue';
-import { ref } from 'vue';
+import { Form, Link, useHttp } from '@inertiajs/vue3';
+import { ChevronLeft, Lock, TicketPercent } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
 import CheckoutController from '@/actions/App/Http/Controllers/Site/CheckoutController';
 import InputError from '@/components/InputError.vue';
 import PhoneInput from '@/components/site/PhoneInput.vue';
@@ -19,6 +19,63 @@ const props = defineProps<{
 }>();
 
 const fulfillment = ref<string>(props.fulfillmentOptions[0]?.value ?? 'pickup');
+
+type CheckoutQuote = {
+    subtotal: number;
+    discount: number;
+    coupon_code: string | null;
+    shipping: number;
+    total: number;
+};
+
+const couponInput = ref('');
+const appliedCode = ref('');
+const quote = ref<CheckoutQuote | null>(null);
+const http = useHttp<
+    { coupon_code: string; fulfillment: string },
+    CheckoutQuote
+>({ coupon_code: '', fulfillment: fulfillment.value });
+
+async function applyCoupon() {
+    const code = couponInput.value.trim();
+
+    if (code === '') {
+        return;
+    }
+
+    http.coupon_code = code;
+    http.fulfillment = fulfillment.value;
+
+    try {
+        quote.value = await http.post(CheckoutController.quote.url());
+        appliedCode.value = quote.value.coupon_code ? code : '';
+    } catch {
+        quote.value = null;
+        appliedCode.value = '';
+    }
+}
+
+function removeCoupon() {
+    couponInput.value = '';
+    appliedCode.value = '';
+    quote.value = null;
+    http.clearErrors();
+}
+
+/** Shipping can change the total, so re-price an applied code when it changes. */
+watch(fulfillment, () => {
+    if (appliedCode.value !== '') {
+        applyCoupon();
+    }
+});
+
+const shipping = computed(() =>
+    fulfillment.value === 'shipping' ? props.shippingCents : 0,
+);
+const discount = computed(() => quote.value?.discount ?? 0);
+const total = computed(
+    () => props.cart.subtotal - discount.value + shipping.value,
+);
 </script>
 
 <template>
@@ -212,6 +269,52 @@ const fulfillment = ref<string>(props.fulfillmentOptions[0]?.value ?? 'pickup');
                     </p>
                 </section>
 
+                <section class="space-y-2 rounded-lg border bg-card p-6">
+                    <Label for="coupon">Coupon code</Label>
+                    <div class="flex max-w-sm gap-2">
+                        <Input
+                            id="coupon"
+                            v-model="couponInput"
+                            autocomplete="off"
+                            class="uppercase"
+                            :disabled="appliedCode !== ''"
+                            @keydown.enter.prevent="applyCoupon"
+                        />
+                        <Button
+                            v-if="appliedCode !== ''"
+                            type="button"
+                            variant="outline"
+                            @click="removeCoupon"
+                            >Remove</Button
+                        >
+                        <Button
+                            v-else
+                            type="button"
+                            variant="outline"
+                            :disabled="
+                                couponInput.trim() === '' || http.processing
+                            "
+                            @click="applyCoupon"
+                            >Apply</Button
+                        >
+                    </div>
+                    <input
+                        type="hidden"
+                        name="coupon_code"
+                        :value="appliedCode"
+                    />
+                    <p
+                        v-if="quote?.coupon_code"
+                        class="flex items-center gap-1.5 text-sm text-sky-dark"
+                    >
+                        <TicketPercent class="size-4" />
+                        {{ quote.coupon_code }} applied
+                    </p>
+                    <InputError
+                        :message="http.errors.coupon_code ?? errors.coupon_code"
+                    />
+                </section>
+
                 <InputError :message="errors.cart" />
 
                 <Button
@@ -219,7 +322,8 @@ const fulfillment = ref<string>(props.fulfillmentOptions[0]?.value ?? 'pickup');
                     class="w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white sm:w-auto"
                     :disabled="processing"
                 >
-                    <Lock class="size-4" /> Continue to payment
+                    <Lock class="size-4" />
+                    {{ total === 0 ? 'Place order' : 'Continue to payment' }}
                 </Button>
                 <p class="text-xs text-muted-foreground">
                     You'll be redirected to Stripe to enter your card details.
@@ -258,6 +362,13 @@ const fulfillment = ref<string>(props.fulfillmentOptions[0]?.value ?? 'pickup');
                         <dt class="text-muted-foreground">Subtotal</dt>
                         <dd>{{ money(cart.subtotal) }}</dd>
                     </div>
+                    <div
+                        v-if="discount > 0"
+                        class="flex justify-between text-sky-dark"
+                    >
+                        <dt>{{ quote?.coupon_code }}</dt>
+                        <dd>−{{ money(discount) }}</dd>
+                    </div>
                     <div class="flex justify-between">
                         <dt class="text-muted-foreground">Shipping</dt>
                         <dd>
@@ -272,16 +383,7 @@ const fulfillment = ref<string>(props.fulfillmentOptions[0]?.value ?? 'pickup');
                         class="flex justify-between border-t pt-2 text-base font-semibold"
                     >
                         <dt>Total</dt>
-                        <dd>
-                            {{
-                                money(
-                                    cart.subtotal +
-                                        (fulfillment === 'shipping'
-                                            ? shippingCents
-                                            : 0),
-                                )
-                            }}
-                        </dd>
+                        <dd>{{ money(total) }}</dd>
                     </div>
                 </dl>
             </aside>

@@ -10,12 +10,14 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $camp_id
  * @property int|null $order_id
+ * @property int|null $camp_age_group_id
  * @property string $player_first_name
  * @property string $player_last_name
  * @property Carbon $player_birthdate
@@ -29,7 +31,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $registered_at
  * @property Carbon|null $expires_at
  */
-#[Fillable(['camp_id', 'order_id', 'player_first_name', 'player_last_name', 'player_birthdate', 'parent_name', 'email', 'phone', 'emergency_contact_name', 'emergency_contact_phone', 'medical_notes', 'status', 'registered_at', 'expires_at'])]
+#[Fillable(['camp_id', 'order_id', 'camp_age_group_id', 'player_first_name', 'player_last_name', 'player_birthdate', 'parent_name', 'email', 'phone', 'emergency_contact_name', 'emergency_contact_phone', 'medical_notes', 'status', 'registered_at', 'expires_at'])]
 class CampRegistration extends Model
 {
     /** @use HasFactory<CampRegistrationFactory> */
@@ -70,6 +72,66 @@ class CampRegistration extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * @return BelongsTo<CampAgeGroup, $this>
+     */
+    public function ageGroup(): BelongsTo
+    {
+        return $this->belongsTo(CampAgeGroup::class, 'camp_age_group_id');
+    }
+
+    /**
+     * The camp days this player is booked for, in date order.
+     *
+     * @return BelongsToMany<CampSessionDay, $this>
+     */
+    public function days(): BelongsToMany
+    {
+        return $this->belongsToMany(CampSessionDay::class, 'camp_registration_days')
+            ->withTimestamps()
+            ->orderBy('date');
+    }
+
+    /**
+     * Each booked day with this player's time, e.g. "Sat, Nov 21 · 9:00 AM – 10:30 AM".
+     *
+     * @return list<string>
+     */
+    public function scheduleLines(): array
+    {
+        $this->loadMissing(['days.times', 'days.session']);
+
+        return $this->days->map(function (CampSessionDay $day): string {
+            $time = $day->timeFor($this->camp_age_group_id) ?? $day->times->first();
+
+            return "{$day->session->name}: {$day->title()}".($time ? " · {$time->range()}" : '');
+        })->all();
+    }
+
+    /**
+     * Booked days grouped by session, each with the player's time:
+     * [['session' => 'Pitching', 'days' => [['title' => 'Sat, Nov 21', 'time' => '7:00 PM – 8:30 PM'], ...]], ...].
+     *
+     * @return list<array{session: string, days: list<array{title: string, time: string|null}>}>
+     */
+    public function scheduleBySession(): array
+    {
+        $this->loadMissing(['days.times', 'days.session']);
+
+        return $this->days
+            ->groupBy('camp_session_id')
+            ->map(fn ($days): array => [
+                'session' => $days->first()->session->name,
+                'days' => $days->map(function (CampSessionDay $day): array {
+                    $time = $day->timeFor($this->camp_age_group_id) ?? $day->times->first();
+
+                    return ['title' => $day->title(), 'time' => $time?->range()];
+                })->values()->all(),
+            ])
+            ->values()
+            ->all();
     }
 
     public function playerName(): string

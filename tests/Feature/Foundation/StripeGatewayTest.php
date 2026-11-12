@@ -61,3 +61,15 @@ test('a merch checkout session keeps the default Stripe lifetime', function () {
 
     expect($requests[0])->not->toHaveKey('expires_at');
 });
+
+test('a discounted order sends its discount to Stripe as a single-use coupon', function () {
+    $requests = recordStripeRequests();
+    $order = Order::factory()->has(OrderItem::factory(), 'items')->create(['subtotal' => 25000, 'discount' => 5000, 'total' => 20000, 'coupon_code' => 'THANKS30']);
+
+    (new StripeGateway(new StripeClient('sk_test_fake'), 'whsec_fake'))
+        ->createCheckoutSession($order, 'https://example.test/success', 'https://example.test/cancel');
+
+    expect($requests)->toHaveCount(2)
+        ->and($requests[0])->toMatchArray(['amount_off' => 5000, 'currency' => 'usd', 'duration' => 'once', 'max_redemptions' => 1, 'name' => 'THANKS30'])
+        ->and($requests[1]['discounts'])->toBe([['coupon' => 'cs_test_123']]);
+});

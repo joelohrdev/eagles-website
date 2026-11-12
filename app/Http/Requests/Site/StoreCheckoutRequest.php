@@ -32,6 +32,7 @@ class StoreCheckoutRequest extends FormRequest
             'shipping_state' => ['nullable', 'required_if:fulfillment,shipping', 'string', 'max:2'],
             'shipping_postal_code' => ['nullable', 'required_if:fulfillment,shipping', 'string', 'max:10'],
             'website' => ['nullable', 'string', 'max:255'],
+            'coupon_code' => ['nullable', 'string', 'max:50'],
         ];
     }
 

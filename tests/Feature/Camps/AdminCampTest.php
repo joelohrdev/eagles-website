@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Camp;
+use App\Models\CampRegistration;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -39,7 +40,7 @@ test('staff can view the create and edit pages', function () {
         ->assertInertia(fn ($page) => $page
             ->component('admin/camps/Edit')
             ->where('camp.id', $camp->id)
-            ->where('camp.price_dollars', number_format($camp->price / 100, 2, '.', ''))
+            ->where('camp.schedule.sessions.0.price', number_format($camp->price / 100, 2, '.', ''))
             ->has('seo')
         );
 });
@@ -52,9 +53,11 @@ test('staff can create a camp with an image and seo meta', function () {
         'description' => 'Two hours of hitting.',
         'location' => 'Eagles Facility',
         'age_range' => '9U–12U',
-        'starts_at' => now()->addMonth()->format('Y-m-d\TH:i'),
-        'ends_at' => now()->addMonth()->addHours(2)->format('Y-m-d\TH:i'),
-        'price' => '125.50',
+        'sessions' => [[
+            'name' => 'Hitting',
+            'price' => '125.50',
+            'days' => [['date' => now()->addMonth()->toDateString(), 'times' => [['starts_at' => '09:00', 'ends_at' => '11:00']]]],
+        ]],
         'capacity' => 20,
         'registration_opens_at' => now()->format('Y-m-d\TH:i'),
         'registration_closes_at' => now()->addMonth()->subDay()->format('Y-m-d\TH:i'),
@@ -89,13 +92,15 @@ test('staff can create a camp with an image and seo meta', function () {
 test('creating a camp validates required fields and date ordering', function () {
     $this->actingAs($this->staff)->post(route('admin.camps.store'), [
         'name' => '',
-        'starts_at' => now()->addMonth()->format('Y-m-d\TH:i'),
-        'ends_at' => now()->addMonth()->subHour()->format('Y-m-d\TH:i'),
-        'price' => '-5',
+        'sessions' => [[
+            'name' => 'Hitting',
+            'price' => '-5',
+            'days' => [['date' => now()->addMonth()->toDateString(), 'times' => [['starts_at' => '11:00', 'ends_at' => '09:00']]]],
+        ]],
         'registration_opens_at' => now()->addWeek()->format('Y-m-d\TH:i'),
         'registration_closes_at' => now()->format('Y-m-d\TH:i'),
         'youtube_url' => 'not-a-url',
-    ])->assertSessionHasErrors(['name', 'ends_at', 'price', 'registration_closes_at', 'youtube_url']);
+    ])->assertSessionHasErrors(['name', 'sessions.0.price', 'registration_closes_at', 'youtube_url']);
 });
 
 test('staff can update a camp and remove its image', function () {
@@ -107,8 +112,11 @@ test('staff can update a camp and remove its image', function () {
 
     $this->actingAs($this->staff)->put(route('admin.camps.update', $camp), [
         'name' => 'Renamed Camp',
-        'starts_at' => now()->addMonth()->format('Y-m-d\TH:i'),
-        'price' => '0',
+        'sessions' => [[
+            'name' => 'Renamed Camp',
+            'price' => '0',
+            'days' => [['date' => now()->addMonth()->toDateString(), 'times' => [['starts_at' => '09:00']]]],
+        ]],
         'is_published' => 0,
         'remove_image' => 1,
     ])->assertRedirect(route('admin.camps.edit', $camp))->assertSessionHasNoErrors();
@@ -124,11 +132,13 @@ test('staff can update a camp and remove its image', function () {
     Storage::disk('public')->assertMissing('camps/thumbs/old.webp');
 });
 
-test('staff can delete a camp', function () {
+test('staff can delete a camp, along with its registrations', function () {
     $camp = Camp::factory()->create();
+    CampRegistration::factory()->for($camp)->create();
 
     $this->actingAs($this->staff)->delete(route('admin.camps.destroy', $camp))
         ->assertRedirect(route('admin.camps.index'));
 
     $this->assertModelMissing($camp);
+    expect(CampRegistration::count())->toBe(0);
 });

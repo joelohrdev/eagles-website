@@ -5,6 +5,7 @@ import {
     CalendarDays,
     ClipboardList,
     CreditCard,
+    TicketPercent,
     ExternalLink,
     Globe,
     Handshake,
@@ -38,6 +39,7 @@ import { dashboard } from '@/routes/admin';
 import { index as campsIndex } from '@/routes/admin/camps';
 import { index as coachesIndex } from '@/routes/admin/coaches';
 import { index as contactIndex } from '@/routes/admin/contact-submissions';
+import { index as couponsIndex } from '@/routes/admin/coupons';
 import { index as facilityIndex } from '@/routes/admin/facility-photos';
 import { index as navigationIndex } from '@/routes/admin/navigation';
 import { index as ordersIndex } from '@/routes/admin/orders';
@@ -82,6 +84,7 @@ const adminNavItems = computed<NavItem[]>(() =>
                   icon: Settings2,
               },
               { title: 'Payments', href: paymentsEdit(), icon: CreditCard },
+              { title: 'Coupons', href: couponsIndex(), icon: TicketPercent },
               {
                   title: 'Navigation & Footer',
                   href: navigationIndex(),

@@ -6,7 +6,15 @@ We've received your payment. Here's your receipt for order **{{ $order->number }
 @if ($order->campRegistration)
 **Camp:** {{ $order->campRegistration->camp->name }}<br>
 **Player:** {{ $order->campRegistration->playerName() }}<br>
-**Date:** {{ $order->campRegistration->camp->starts_at->format('l, F j, Y \a\t g:i A') }}<br>
+@if ($order->campRegistration->ageGroup)
+**Age group:** {{ $order->campRegistration->ageGroup->name }}<br>
+@endif
+
+**Schedule**<br>
+@foreach ($order->campRegistration->scheduleLines() as $line)
+{{ $line }}<br>
+@endforeach
+
 @if ($order->campRegistration->camp->location)
 **Location:** {{ $order->campRegistration->camp->location }}<br>
 @endif
@@ -18,6 +26,9 @@ We've received your payment. Here's your receipt for order **{{ $order->number }
 @foreach ($order->items as $item)
 | {{ $item->description }}@if ($item->size || $item->color) ({{ collect([$item->size, $item->color])->filter()->implode(' / ') }})@endif | {{ $item->quantity }} | ${{ number_format($item->lineTotal() / 100, 2) }} |
 @endforeach
+@if ($order->discount > 0)
+| Discount ({{ $order->coupon_code }}) | | −${{ number_format($order->discount / 100, 2) }} |
+@endif
 | **Total** | | **${{ number_format($order->total / 100, 2) }}** |
 </x-mail::table>
 

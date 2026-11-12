@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CampController;
 use App\Http\Controllers\Admin\CampRegistrationController;
 use App\Http\Controllers\Admin\CoachController;
 use App\Http\Controllers\Admin\ContactSubmissionController;
+use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FacilityPhotoController;
 use App\Http\Controllers\Admin\InvitationController;
@@ -45,6 +46,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('facility-photos/reorder', [FacilityPhotoController::class, 'reorder'])->name('facility-photos.reorder');
 
     Route::resource('camps', CampController::class)->except(['show']);
+    Route::get('camps/{camp}/preview', [CampController::class, 'preview'])->name('camps.preview');
+    Route::get('camps/{camp}/preview/register', [CampController::class, 'previewRegister'])->name('camps.preview.register');
+    Route::post('camps/{camp}/preview/quote', [CampController::class, 'previewQuote'])
+        ->middleware('throttle:60,1')
+        ->name('camps.preview.quote');
     Route::get('camps/{camp}/registrations', [CampRegistrationController::class, 'index'])->name('camps.registrations.index');
     Route::get('camps/{camp}/registrations/export', [CampRegistrationController::class, 'export'])->name('camps.registrations.export');
     Route::delete('camps/{camp}/registrations/{registration}', [CampRegistrationController::class, 'destroy'])
@@ -85,6 +91,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('payments', [PaymentSettingController::class, 'edit'])->name('payments.edit');
         Route::put('payments', [PaymentSettingController::class, 'update'])->name('payments.update');
         Route::post('payments/check', [PaymentSettingController::class, 'check'])->name('payments.check');
+
+        Route::resource('coupons', CouponController::class)->except(['show']);
 
         Route::get('navigation', [NavigationController::class, 'index'])->name('navigation.index');
         Route::post('navigation/items', [NavigationController::class, 'store'])->name('navigation.items.store');

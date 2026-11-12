@@ -43,6 +43,7 @@ class StoreCampRegistrationRequest extends FormRequest
             'emergency_contact_phone' => ['required', 'string', $this->phoneRule()],
             'medical_notes' => ['nullable', 'string', 'max:1000'],
             'website' => ['nullable', 'string', 'max:255'],
+            ...QuoteCampRegistrationRequest::selectionRules(),
         ];
     }
 
@@ -66,6 +67,7 @@ class StoreCampRegistrationRequest extends FormRequest
             'parent_name' => 'parent/guardian name',
             'emergency_contact_name' => 'emergency contact name',
             'emergency_contact_phone' => 'emergency contact phone',
+            ...QuoteCampRegistrationRequest::selectionAttributes(),
         ];
     }
 

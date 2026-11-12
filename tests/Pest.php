@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Camp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +45,24 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * A valid public camp registration that books every day of the camp.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function validCampRegistration(Camp $camp, array $overrides = []): array
 {
-    // ..
+    return array_merge([
+        'days' => $camp->days()->pluck('camp_session_days.id')->all(),
+        'player_first_name' => 'Jamie',
+        'player_last_name' => 'Rivera',
+        'player_birthdate' => now()->subYears(12)->toDateString(),
+        'parent_name' => 'Alex Rivera',
+        'email' => 'alex@example.com',
+        'phone' => '630-555-0100',
+        'emergency_contact_name' => 'Sam Rivera',
+        'emergency_contact_phone' => '630-555-0101',
+        'medical_notes' => 'Peanut allergy',
+    ], $overrides);
 }

@@ -28,7 +28,7 @@ class CampRegistrationConfirmation extends Mailable implements ShouldQueue
         return new Content(
             markdown: 'mail.camps.confirmation',
             with: [
-                'registration' => $this->registration->loadMissing('camp'),
+                'registration' => $this->registration->loadMissing(['camp', 'ageGroup', 'order', 'days.times', 'days.session']),
                 'camp' => $this->registration->camp,
             ],
         );

@@ -3,11 +3,14 @@
 
 **Order:** {{ $order->number }}<br>
 **Customer:** {{ $order->name }} ({{ $order->email }}@if ($order->phone), {{ $order->phone }}@endif)<br>
+@if ($order->discount > 0)
+**Discount:** −${{ number_format($order->discount / 100, 2) }} ({{ $order->coupon_code }})<br>
+@endif
 **Total:** ${{ number_format($order->total / 100, 2) }}<br>
 
 @if ($order->campRegistration)
 **Camp:** {{ $order->campRegistration->camp->name }}<br>
-**Player:** {{ $order->campRegistration->playerName() }}<br>
+**Player:** {{ $order->campRegistration->playerName() }}@if ($order->campRegistration->ageGroup) ({{ $order->campRegistration->ageGroup->name }})@endif<br>
 @endif
 
 <x-mail::table>

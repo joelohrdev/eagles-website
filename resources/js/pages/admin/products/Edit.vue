@@ -5,6 +5,7 @@ import { ref } from 'vue';
 import ProductController from '@/actions/App/Http/Controllers/Admin/ProductController';
 import ProductVariantController from '@/actions/App/Http/Controllers/Admin/ProductVariantController';
 import ConfirmDelete from '@/components/admin/ConfirmDelete.vue';
+import MoneyInput from '@/components/admin/MoneyInput.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -161,11 +162,8 @@ const variantKey = (variant: ProductVariant) => ({
                             <InputError :message="verrors.stock" />
                         </div>
                         <div>
-                            <Input
+                            <MoneyInput
                                 name="price_override"
-                                type="number"
-                                step="0.01"
-                                min="0"
                                 :default-value="dollars(variant.price_override)"
                                 placeholder="—"
                                 class="h-8"
@@ -241,12 +239,9 @@ const variantKey = (variant: ProductVariant) => ({
                 </div>
                 <div class="grid gap-1">
                     <Label for="new_price_override">Price override</Label>
-                    <Input
+                    <MoneyInput
                         id="new_price_override"
                         name="price_override"
-                        type="number"
-                        step="0.01"
-                        min="0"
                         placeholder="—"
                     />
                     <InputError :message="nerrors.price_override" />

@@ -133,6 +133,18 @@ const statusOptions = props.statuses.filter(
                                     <dd>{{ money(order.subtotal) }}</dd>
                                 </div>
                                 <div
+                                    v-if="order.discount > 0"
+                                    class="flex justify-between"
+                                >
+                                    <dt class="text-muted-foreground">
+                                        Discount
+                                        <span class="font-mono text-xs">{{
+                                            order.coupon_code
+                                        }}</span>
+                                    </dt>
+                                    <dd>−{{ money(order.discount) }}</dd>
+                                </div>
+                                <div
                                     class="flex justify-between border-t pt-1 font-semibold"
                                 >
                                     <dt>Total</dt>

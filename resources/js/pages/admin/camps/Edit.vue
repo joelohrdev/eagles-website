@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, setLayoutProps } from '@inertiajs/vue3';
-import { ExternalLink, Users } from '@lucide/vue';
+import { ExternalLink, Eye, Users } from '@lucide/vue';
 import ConfirmDelete from '@/components/admin/ConfirmDelete.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
@@ -38,8 +38,18 @@ setLayoutProps({
                     >
                 </Button>
                 <Button as-child variant="outline" size="sm">
+                    <a :href="camp.preview_url" target="_blank" rel="noopener"
+                        ><Eye class="size-4" /> Preview</a
+                    >
+                </Button>
+                <Button
+                    v-if="camp.is_published"
+                    as-child
+                    variant="outline"
+                    size="sm"
+                >
                     <a :href="camp.public_url" target="_blank" rel="noopener"
-                        ><ExternalLink class="size-4" /> View</a
+                        ><ExternalLink class="size-4" /> View live</a
                     >
                 </Button>
             </div>

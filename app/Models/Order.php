@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
@@ -29,7 +30,10 @@ use Illuminate\Support\Str;
  * @property string|null $shipping_city
  * @property string|null $shipping_state
  * @property string|null $shipping_postal_code
- * @property int $subtotal
+ * @property int $subtotal Before any discount.
+ * @property int|null $coupon_id
+ * @property string|null $coupon_code Code (or discount name) as applied, kept if the coupon is deleted.
+ * @property int $discount
  * @property int $total
  * @property OrderStatus $status
  * @property string|null $stripe_checkout_session_id
@@ -38,7 +42,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $fulfilled_at
  * @property string|null $notes
  */
-#[Fillable(['number', 'type', 'email', 'name', 'phone', 'fulfillment', 'shipping_address_line1', 'shipping_address_line2', 'shipping_city', 'shipping_state', 'shipping_postal_code', 'subtotal', 'total', 'status', 'stripe_checkout_session_id', 'stripe_payment_intent_id', 'paid_at', 'fulfilled_at', 'notes'])]
+#[Fillable(['number', 'type', 'email', 'name', 'phone', 'fulfillment', 'shipping_address_line1', 'shipping_address_line2', 'shipping_city', 'shipping_state', 'shipping_postal_code', 'subtotal', 'coupon_id', 'coupon_code', 'discount', 'total', 'status', 'stripe_checkout_session_id', 'stripe_payment_intent_id', 'paid_at', 'fulfilled_at', 'notes'])]
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
@@ -49,6 +53,7 @@ class Order extends Model
         'fulfillment' => 'pickup',
         'status' => 'pending',
         'subtotal' => 0,
+        'discount' => 0,
         'total' => 0,
     ];
 
@@ -66,6 +71,7 @@ class Order extends Model
             'fulfillment' => Fulfillment::class,
             'status' => OrderStatus::class,
             'subtotal' => 'integer',
+            'discount' => 'integer',
             'total' => 'integer',
             'paid_at' => 'datetime',
             'fulfilled_at' => 'datetime',
@@ -87,6 +93,14 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * @return BelongsTo<Coupon, $this>
+     */
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     /**

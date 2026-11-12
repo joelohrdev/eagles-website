@@ -1,7 +1,11 @@
 <x-mail::message>
 # New camp registration
 
-**Camp:** {{ $camp->name }} ({{ $camp->starts_at->format('M j, Y g:i A') }})<br>
+**Camp:** {{ $camp->name }}<br>
+@if ($registration->ageGroup)
+**Age group:** {{ $registration->ageGroup->name }}<br>
+@endif
+**Days:** {{ implode('; ', $registration->scheduleLines()) }}<br>
 **Player:** {{ $registration->playerName() }} (born {{ $registration->player_birthdate->format('M j, Y') }})<br>
 **Parent/Guardian:** {{ $registration->parent_name }}<br>
 **Email:** {{ $registration->email }}<br>

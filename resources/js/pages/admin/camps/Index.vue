@@ -102,7 +102,9 @@ defineOptions({
                                 </div>
                             </TableCell>
                             <TableCell class="text-sm whitespace-nowrap">{{
-                                formatDateTime(camp.starts_at)
+                                camp.starts_at
+                                    ? formatDateTime(camp.starts_at)
+                                    : 'Dates TBD'
                             }}</TableCell>
                             <TableCell>{{
                                 camp.price === 0 ? 'Free' : money(camp.price)

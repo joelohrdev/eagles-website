@@ -5,13 +5,16 @@ namespace App\Http\Controllers\Site;
 use App\Actions\Orders\CancelPendingOrder;
 use App\Actions\Orders\CreateCheckoutSession;
 use App\Actions\Orders\CreateMerchOrder;
+use App\Actions\Orders\MarkOrderPaid;
 use App\Enums\Fulfillment;
 use App\Enums\OrderType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Site\QuoteCheckoutRequest;
 use App\Http\Requests\Site\StoreCheckoutRequest;
 use App\Models\Order;
 use App\Services\Cart;
 use App\Services\SeoResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
@@ -48,22 +51,46 @@ class CheckoutController extends Controller
     }
 
     /**
+     * Price the cart with a coupon for the checkout page. Placing the order prices it again.
+     */
+    public function quote(QuoteCheckoutRequest $request, CreateMerchOrder $createOrder): JsonResponse
+    {
+        if ($this->cart->isEmpty()) {
+            return response()->json(['message' => __('Your cart is empty.')], 422);
+        }
+
+        return response()->json($createOrder->quote(
+            $request->validated('coupon_code'),
+            Fulfillment::from($request->validated('fulfillment') ?? Fulfillment::Pickup->value),
+        ));
+    }
+
+    /**
      * Create the pending order and redirect to the hosted payment page.
      */
     public function store(
         StoreCheckoutRequest $request,
         CreateMerchOrder $createOrder,
         CreateCheckoutSession $createSession,
+        MarkOrderPaid $markOrderPaid,
     ): SymfonyResponse|RedirectResponse {
         if ($request->isSpam()) {
             return to_route('cart.index');
         }
 
         $order = $createOrder->handle($request->validated());
+        $successUrl = URL::signedRoute('checkout.success', ['order' => $order->number]);
+
+        if ($order->total === 0) {
+            /** A coupon covered everything: there is nothing to pay, so confirm it here. */
+            $markOrderPaid->handle($order);
+
+            return redirect()->to($successUrl);
+        }
 
         $session = $createSession->handle(
             $order,
-            URL::signedRoute('checkout.success', ['order' => $order->number]),
+            $successUrl,
             URL::signedRoute('checkout.cancel', ['order' => $order->number]),
         );
 
@@ -100,6 +127,8 @@ class CheckoutController extends Controller
                     'postal_code' => $order->shipping_postal_code,
                 ] : null,
                 'subtotal' => $order->subtotal,
+                'discount' => $order->discount,
+                'discount_label' => $order->coupon_code,
                 'total' => $order->total,
                 'items' => $order->items->map(fn ($item) => [
                     'id' => $item->id,
@@ -112,6 +141,8 @@ class CheckoutController extends Controller
                 ])->values(),
                 'camp_registration' => $order->campRegistration ? [
                     'player_name' => $order->campRegistration->playerName(),
+                    'age_group' => $order->campRegistration->ageGroup?->name,
+                    'schedule' => $order->campRegistration->scheduleLines(),
                     'status' => $order->campRegistration->status->value,
                     'camp' => [
                         'name' => $order->campRegistration->camp->name,

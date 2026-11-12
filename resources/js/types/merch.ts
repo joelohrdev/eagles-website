@@ -54,6 +54,8 @@ export type Order = {
     shipping_state: string | null;
     shipping_postal_code: string | null;
     subtotal: number;
+    discount: number;
+    coupon_code: string | null;
     total: number;
     status: 'pending' | 'paid' | 'fulfilled' | 'cancelled' | 'refunded';
     stripe_checkout_session_id: string | null;

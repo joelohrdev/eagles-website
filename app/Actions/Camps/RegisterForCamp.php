@@ -3,6 +3,7 @@
 namespace App\Actions\Camps;
 
 use App\Actions\Orders\CreateCheckoutSession;
+use App\Actions\Orders\MarkOrderPaid;
 use App\Enums\Fulfillment;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
@@ -15,32 +16,43 @@ use App\Models\CampRegistration;
 use App\Models\Order;
 use App\Services\SiteSettings;
 use App\Support\Payments\CheckoutSession;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Register a player for a camp. Free camps are confirmed immediately;
- * paid camps create a pending order + registration hold and return a
- * checkout session the caller should redirect to.
+ * Register a player for chosen days of a camp. Free selections (and ones a
+ * coupon covers in full) are confirmed immediately; paid ones create a pending
+ * order + registration hold and return a checkout session to redirect to.
  */
 class RegisterForCamp
 {
     public function __construct(
         private CreateCheckoutSession $createCheckoutSession,
+        private QuoteCampSelection $quoteCampSelection,
+        private MarkOrderPaid $markOrderPaid,
         private SiteSettings $settings,
     ) {}
 
     /**
-     * @param  array<string, mixed>  $data  Validated registration fields.
+     * @param  array<string, mixed>  $data  Validated registration fields, plus `days` (day ids),
+     *                                      `camp_age_group_id` and an optional `coupon_code`.
      * @return array{registration: CampRegistration, checkout: CheckoutSession|null}
      *
      * @throws CampRegistrationClosed
+     * @throws ValidationException when the selection, age group or coupon is not valid or a slot is full.
      */
     public function handle(Camp $camp, array $data): array
     {
+        $dayIds = array_map('intval', $data['days'] ?? []);
+        $ageGroupId = isset($data['camp_age_group_id']) ? (int) $data['camp_age_group_id'] : null;
+        $couponCode = $data['coupon_code'] ?? null;
+        $attributes = Arr::except($data, ['days', 'camp_age_group_id', 'coupon_code']);
+
         /** @var array{registration: CampRegistration, order: Order|null} $result */
-        $result = DB::transaction(function () use ($camp, $data): array {
+        $result = DB::transaction(function () use ($camp, $dayIds, $ageGroupId, $couponCode, $attributes): array {
             /** @var Camp $locked */
             $locked = Camp::query()->whereKey($camp->id)->lockForUpdate()->firstOrFail();
 
@@ -48,41 +60,61 @@ class RegisterForCamp
                 throw new CampRegistrationClosed;
             }
 
-            $playerName = trim($data['player_first_name'].' '.$data['player_last_name']);
+            $quote = $this->quoteCampSelection->handle($locked, $dayIds, $ageGroupId, $couponCode, lockCoupon: true);
+            $playerName = trim($attributes['player_first_name'].' '.$attributes['player_last_name']);
             $order = null;
 
-            if (! $locked->isFree()) {
+            if ($quote->subtotal > 0) {
+                $coupon = $quote->appliedCoupon();
+
                 $order = Order::query()->create([
                     'type' => OrderType::Camp,
-                    'email' => $data['email'],
-                    'name' => $data['parent_name'],
-                    'phone' => $data['phone'],
+                    'email' => $attributes['email'],
+                    'name' => $attributes['parent_name'],
+                    'phone' => $attributes['phone'],
                     'fulfillment' => Fulfillment::Pickup,
-                    'subtotal' => $locked->price,
-                    'total' => $locked->price,
+                    'subtotal' => $quote->subtotal,
+                    'coupon_id' => $coupon?->id,
+                    'coupon_code' => $quote->discountLabel(),
+                    'discount' => $quote->discount(),
+                    'total' => $quote->total(),
                     'status' => OrderStatus::Pending,
                 ]);
 
-                $order->items()->create([
-                    'description' => "{$locked->name} — {$playerName}",
-                    'unit_price' => $locked->price,
-                    'quantity' => 1,
-                ]);
+                foreach ($quote->lines as $line) {
+                    $order->items()->create([
+                        'description' => "{$line->description()} — {$playerName}",
+                        'unit_price' => $line->price,
+                        'quantity' => 1,
+                    ]);
+                }
             }
 
+            $needsPayment = $order !== null && $quote->total() > 0;
+
             $registration = $locked->registrations()->create([
-                ...$data,
+                ...$attributes,
+                'camp_age_group_id' => $locked->ageGroups->isEmpty() ? null : $ageGroupId,
                 'order_id' => $order?->id,
-                'status' => $order ? RegistrationStatus::PendingPayment : RegistrationStatus::Paid,
+                'status' => $needsPayment ? RegistrationStatus::PendingPayment : RegistrationStatus::Paid,
                 'registered_at' => now(),
-                'expires_at' => $order ? now()->addMinutes(CampRegistration::PENDING_HOLD_MINUTES) : null,
+                'expires_at' => $needsPayment ? now()->addMinutes(CampRegistration::PENDING_HOLD_MINUTES) : null,
             ]);
+
+            $registration->days()->sync(collect($quote->lines)->flatMap(fn ($line) => $line->days->pluck('id'))->all());
 
             return ['registration' => $registration, 'order' => $order];
         });
 
         $registration = $result['registration']->setRelation('camp', $camp);
         $order = $result['order'];
+
+        if ($order !== null && $order->total === 0) {
+            /** A coupon covered the whole price: confirm it like a paid order (receipt + org notice), with no trip to Stripe. */
+            $this->markOrderPaid->handle($order);
+
+            return ['registration' => $registration->refresh()->setRelation('camp', $camp), 'checkout' => null];
+        }
 
         if ($order === null) {
             Mail::to($registration->email)->queue(new CampRegistrationConfirmation($registration));

@@ -2,12 +2,17 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Coupons\ResolveCoupon;
 use App\Enums\Fulfillment;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Services\Cart;
+use App\Support\Coupons\CouponCalculator;
+use App\Support\Coupons\DiscountableLine;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -21,12 +26,53 @@ class CreateMerchOrder
      */
     public const int SHIPPING_FLAT_CENTS = 0;
 
-    public function __construct(private Cart $cart) {}
+    public function __construct(
+        private Cart $cart,
+        private ResolveCoupon $resolveCoupon,
+    ) {}
 
     /**
-     * @param  array<string, mixed>  $customer  Validated checkout fields.
+     * What the cart costs with an optional coupon, for the checkout page's live total.
      *
-     * @throws ValidationException when the cart is empty or stock is insufficient.
+     * @return array{subtotal: int, discount: int, coupon_code: string|null, shipping: int, total: int}
+     *
+     * @throws ValidationException when the coupon can't be used.
+     */
+    public function quote(?string $couponCode, Fulfillment $fulfillment = Fulfillment::Pickup): array
+    {
+        return $this->price(
+            $this->cart->lines(),
+            $this->resolveCoupon->handle($couponCode, OrderType::Merch),
+            $fulfillment,
+        );
+    }
+
+    /**
+     * @param  Collection<int, array{unit_price: int, quantity: int, line_total: int}>  $lines
+     * @return array{subtotal: int, discount: int, coupon_code: string|null, shipping: int, total: int}
+     */
+    private function price(Collection $lines, ?Coupon $coupon, Fulfillment $fulfillment): array
+    {
+        $subtotal = (int) $lines->sum('line_total');
+        $discount = $coupon ? CouponCalculator::discount(
+            $coupon,
+            $lines->map(fn (array $line): DiscountableLine => new DiscountableLine($line['unit_price'], $line['quantity']))->values()->all(),
+        ) : 0;
+        $shipping = $fulfillment === Fulfillment::Shipping ? self::SHIPPING_FLAT_CENTS : 0;
+
+        return [
+            'subtotal' => $subtotal,
+            'discount' => $discount,
+            'coupon_code' => $discount > 0 ? $coupon?->code : null,
+            'shipping' => $shipping,
+            'total' => $subtotal - $discount + $shipping,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $customer  Validated checkout fields, with an optional `coupon_code`.
+     *
+     * @throws ValidationException when the cart is empty, stock is insufficient or the coupon can't be used.
      */
     public function handle(array $customer): Order
     {
@@ -54,9 +100,9 @@ class CreateMerchOrder
                 }
             }
 
-            $subtotal = (int) $lines->sum('line_total');
             $fulfillment = Fulfillment::from($customer['fulfillment']);
-            $shipping = $fulfillment === Fulfillment::Shipping ? self::SHIPPING_FLAT_CENTS : 0;
+            $coupon = $this->resolveCoupon->handle($customer['coupon_code'] ?? null, OrderType::Merch, lock: true);
+            $price = $this->price($lines, $coupon, $fulfillment);
 
             $order = Order::query()->create([
                 'type' => OrderType::Merch,
@@ -69,8 +115,11 @@ class CreateMerchOrder
                 'shipping_city' => $customer['shipping_city'] ?? null,
                 'shipping_state' => $customer['shipping_state'] ?? null,
                 'shipping_postal_code' => $customer['shipping_postal_code'] ?? null,
-                'subtotal' => $subtotal,
-                'total' => $subtotal + $shipping,
+                'subtotal' => $price['subtotal'],
+                'coupon_id' => $price['coupon_code'] !== null ? $coupon?->id : null,
+                'coupon_code' => $price['coupon_code'],
+                'discount' => $price['discount'],
+                'total' => $price['total'],
                 'status' => OrderStatus::Pending,
             ]);
 

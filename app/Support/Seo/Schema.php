@@ -172,7 +172,11 @@ final class Schema
             'endDate' => $camp->ends_at?->toIso8601String(),
             'eventStatus' => 'https://schema.org/EventScheduled',
             'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
-            'location' => $camp->location ? ['@type' => 'Place', 'name' => $camp->location] : null,
+            'location' => $camp->location || $camp->address ? array_filter([
+                '@type' => 'Place',
+                'name' => $camp->location ?? $camp->address,
+                'address' => $camp->address,
+            ]) : null,
             'organizer' => ['@id' => url('/').'#organization'],
             'image' => ImageUploader::absoluteUrl($camp->image_path),
             'offers' => [

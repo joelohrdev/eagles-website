@@ -13,6 +13,10 @@ defineProps<{
 }>();
 
 function dateRange(camp: CampSummary): string {
+    if (!camp.starts_at) {
+        return 'Dates TBD';
+    }
+
     if (!camp.ends_at) {
         return `${formatDate(camp.starts_at)} · ${formatTime(camp.starts_at)}`;
     }
@@ -94,7 +98,11 @@ function dateRange(camp: CampSummary): string {
                         <span
                             class="shrink-0 rounded-md bg-accent px-2 py-1 text-sm font-semibold text-navy"
                         >
-                            {{ camp.is_free ? 'Free' : money(camp.price) }}
+                            {{
+                                camp.is_free
+                                    ? 'Free'
+                                    : `${camp.has_pricing_options ? 'From ' : ''}${money(camp.price)}`
+                            }}
                         </span>
                     </div>
                     <ul class="mt-3 space-y-1.5 text-sm text-muted-foreground">

@@ -5,6 +5,7 @@ namespace App\Actions\Orders;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\RegistrationStatus;
+use App\Mail\CampRegistrationConfirmation;
 use App\Mail\OrderReceipt;
 use App\Mail\OrderReceivedNotification;
 use App\Models\Order;
@@ -13,7 +14,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
 /**
- * Transition an order to paid, finalize what it purchased, and send emails.
+ * Transition an order to paid, finalize what it purchased, and send emails:
+ * the receipt, a camp confirmation with the schedule for camp orders, and the org notice.
  * Idempotent: an already-paid order is left untouched.
  */
 class MarkOrderPaid
@@ -54,6 +56,11 @@ class MarkOrderPaid
         $order->refresh()->load(['items', 'campRegistration.camp']);
 
         Mail::to($order->email)->queue(new OrderReceipt($order));
+
+        if ($order->campRegistration) {
+            /** The receipt covers the money; this one tells the family where and when to show up. */
+            Mail::to($order->campRegistration->email)->queue(new CampRegistrationConfirmation($order->campRegistration));
+        }
 
         if ($orgEmail = $this->settings->get('email')) {
             Mail::to($orgEmail)->queue(new OrderReceivedNotification($order));

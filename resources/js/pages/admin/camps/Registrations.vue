@@ -24,7 +24,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { formatDate, formatDateTime, money } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { edit, index } from '@/routes/admin/camps';
 import {
     destroy,
@@ -40,15 +40,22 @@ const props = defineProps<{
         id: number;
         name: string;
         slug: string;
-        starts_at: string;
+        starts_at: string | null;
         capacity: number | null;
         price: number;
         spots_remaining: number | null;
         paid_count: number;
     };
     registrations: Paginated<AdminCampRegistration>;
-    filters: { q: string; status: string };
+    filters: {
+        q: string;
+        status: string;
+        day: number | null;
+        age_group: number | null;
+    };
     statuses: { value: string; label: string }[];
+    days: { id: number; label: string }[];
+    ageGroups: { id: number; name: string }[];
 }>();
 
 setLayoutProps({
@@ -61,25 +68,26 @@ setLayoutProps({
 
 const q = ref(props.filters.q);
 const status = ref(props.filters.status || 'all');
+const day = ref(props.filters.day?.toString() ?? 'all');
+const ageGroup = ref(props.filters.age_group?.toString() ?? 'all');
+
+const filterQuery = () => ({
+    q: q.value || undefined,
+    status: status.value === 'all' ? undefined : status.value,
+    day: day.value === 'all' ? undefined : day.value,
+    age_group: ageGroup.value === 'all' ? undefined : ageGroup.value,
+});
 
 function applyFilters() {
-    router.get(
-        registrationsIndex(props.camp.slug).url,
-        {
-            q: q.value || undefined,
-            status: status.value === 'all' ? undefined : status.value,
-        },
-        { preserveState: true, preserveScroll: true, replace: true },
-    );
+    router.get(registrationsIndex(props.camp.slug).url, filterQuery(), {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
 }
 
 const exportUrl = () =>
-    exportMethod(props.camp.slug, {
-        query: {
-            q: q.value || undefined,
-            status: status.value === 'all' ? undefined : status.value,
-        },
-    }).url;
+    exportMethod(props.camp.slug, { query: filterQuery() }).url;
 </script>
 
 <template>
@@ -95,7 +103,7 @@ const exportUrl = () =>
                 </Button>
                 <Heading
                     :title="`${camp.name} — Registrations`"
-                    :description="`${formatDateTime(camp.starts_at)} · ${camp.paid_count} paid${camp.capacity ? ` of ${camp.capacity}` : ''}${camp.spots_remaining !== null ? ` · ${camp.spots_remaining} spots left` : ''} · ${camp.price === 0 ? 'Free' : money(camp.price)}`"
+                    :description="`${camp.starts_at ? formatDateTime(camp.starts_at) : 'Dates TBD'} · ${camp.paid_count} paid${camp.spots_remaining !== null ? ` · ${camp.spots_remaining} spots left` : ''}`"
                 />
             </div>
             <Button as-child variant="outline">
@@ -134,6 +142,42 @@ const exportUrl = () =>
                     >
                 </SelectContent>
             </Select>
+            <Select
+                v-if="days.length > 1"
+                v-model="day"
+                @update:model-value="applyFilters"
+            >
+                <SelectTrigger class="w-56"
+                    ><SelectValue placeholder="All days"
+                /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All days</SelectItem>
+                    <SelectItem
+                        v-for="d in days"
+                        :key="d.id"
+                        :value="d.id.toString()"
+                        >{{ d.label }}</SelectItem
+                    >
+                </SelectContent>
+            </Select>
+            <Select
+                v-if="ageGroups.length > 0"
+                v-model="ageGroup"
+                @update:model-value="applyFilters"
+            >
+                <SelectTrigger class="w-40"
+                    ><SelectValue placeholder="All age groups"
+                /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All age groups</SelectItem>
+                    <SelectItem
+                        v-for="g in ageGroups"
+                        :key="g.id"
+                        :value="g.id.toString()"
+                        >{{ g.name }}</SelectItem
+                    >
+                </SelectContent>
+            </Select>
             <Button type="submit" variant="secondary">Filter</Button>
         </form>
 
@@ -141,7 +185,7 @@ const exportUrl = () =>
             v-if="registrations.data.length === 0"
             title="No registrations"
             :description="
-                filters.q || filters.status
+                filters.q || filters.status || filters.day || filters.age_group
                     ? 'No registrations match your filters.'
                     : 'Nobody has registered for this camp yet.'
             "
@@ -153,6 +197,7 @@ const exportUrl = () =>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Player</TableHead>
+                            <TableHead>Sessions</TableHead>
                             <TableHead>Parent / Guardian</TableHead>
                             <TableHead>Emergency contact</TableHead>
                             <TableHead>Status</TableHead>
@@ -185,6 +230,21 @@ const exportUrl = () =>
                                 >
                                     <span class="font-medium">Medical:</span>
                                     {{ registration.medical_notes }}
+                                </p>
+                            </TableCell>
+                            <TableCell class="text-sm">
+                                <p
+                                    v-if="registration.age_group"
+                                    class="font-medium"
+                                >
+                                    {{ registration.age_group }}
+                                </p>
+                                <p
+                                    v-for="line in registration.schedule"
+                                    :key="line"
+                                    class="text-xs whitespace-nowrap text-muted-foreground"
+                                >
+                                    {{ line }}
                                 </p>
                             </TableCell>
                             <TableCell>

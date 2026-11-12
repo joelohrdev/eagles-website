@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\RegistrationStatus;
 use App\Models\Camp;
 use App\Models\CampRegistration;
+use App\Models\CampSessionDay;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -12,6 +13,27 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class CampRegistrationFactory extends Factory
 {
+    /**
+     * Book the player for every day of the camp unless the test picks days itself
+     * (`->forDays(...)`), so registrations count against capacity like real ones.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (CampRegistration $registration): void {
+            if (! $registration->days()->exists()) {
+                $registration->days()->sync($registration->camp->days()->pluck('camp_session_days.id'));
+            }
+        });
+    }
+
+    /**
+     * @param  iterable<CampSessionDay>  $days
+     */
+    public function forDays(iterable $days): static
+    {
+        return $this->afterCreating(fn (CampRegistration $registration) => $registration->days()->sync(collect($days)->pluck('id')));
+    }
+
     public function definition(): array
     {
         return [

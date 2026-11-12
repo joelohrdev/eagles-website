@@ -57,7 +57,8 @@ test('registrations can be exported as csv', function () {
 
     $csv = $response->streamedContent();
 
-    expect($csv)->toContain('Player,Birthdate,Parent/Guardian')
+    expect($csv)->toContain('Player,Birthdate,"Age group",Days,Parent/Guardian')
+        ->toContain($this->camp->name.': '.$this->camp->starts_at->format('D, M j'))
         ->toContain('Casey Jones')
         ->toContain('casey@example.com')
         ->toContain($order->number);

@@ -2,6 +2,7 @@
 import { Form } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import CampController from '@/actions/App/Http/Controllers/Admin/CampController';
+import CampScheduleFields from '@/components/admin/camps/CampScheduleFields.vue';
 import FormTabs from '@/components/admin/FormTabs.vue';
 import ImageUpload from '@/components/admin/ImageUpload.vue';
 import SeoFields from '@/components/admin/SeoFields.vue';
@@ -10,7 +11,6 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { AdminCamp, CampSeo } from '@/types/camps';
@@ -23,7 +23,11 @@ const props = withDefaults(
     { camp: null, seo: null },
 );
 
-const isPublished = ref(props.camp?.is_published ?? false);
+/** Whether the camp is live now; the save buttons decide what it becomes. */
+/** Bumped after every successful save to reload the schedule with saved ids. */
+const scheduleVersion = ref(0);
+
+const isPublished = computed(() => props.camp?.is_published ?? false);
 
 const formProps = computed(() =>
     props.camp
@@ -42,19 +46,24 @@ const seoFallback = computed(() => ({
 </script>
 
 <template>
-    <Form v-bind="formProps" v-slot="{ errors, processing }" class="space-y-8">
+    <Form
+        v-bind="formProps"
+        v-slot="{ errors, processing }"
+        class="space-y-8"
+        @success="scheduleVersion++"
+    >
         <FormTabs
             :errors="errors"
             :tabs="[
                 { value: 'details' },
                 {
+                    value: 'schedule',
+                    fields: ['bundle_price', 'capacity'],
+                    prefix: ['sessions', 'age_groups'],
+                },
+                {
                     value: 'registration',
-                    fields: [
-                        'price',
-                        'capacity',
-                        'registration_opens_at',
-                        'registration_closes_at',
-                    ],
+                    fields: ['registration_opens_at', 'registration_closes_at'],
                 },
                 { value: 'seo', prefix: 'seo' },
             ]"
@@ -62,9 +71,8 @@ const seoFallback = computed(() => ({
         >
             <TabsList>
                 <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="registration"
-                    >Registration & Pricing</TabsTrigger
-                >
+                <TabsTrigger value="schedule">Sessions & Schedule</TabsTrigger>
+                <TabsTrigger value="registration">Registration</TabsTrigger>
                 <TabsTrigger value="seo">SEO & Sharing</TabsTrigger>
             </TabsList>
 
@@ -116,21 +124,25 @@ const seoFallback = computed(() => ({
                     </div>
                 </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <DateTimePicker
-                        name="starts_at"
-                        label="Starts"
-                        :model-value="camp?.starts_at"
-                        required
-                        :error="errors.starts_at"
+                <div class="grid content-start gap-2">
+                    <Label for="address"
+                        >Address
+                        <span class="text-muted-foreground"
+                            >(optional)</span
+                        ></Label
+                    >
+                    <Input
+                        id="address"
+                        name="address"
+                        :default-value="camp?.address ?? ''"
+                        placeholder="1234 Main St, Naperville, IL 60540"
+                        autocomplete="off"
                     />
-                    <DateTimePicker
-                        name="ends_at"
-                        label="Ends"
-                        :model-value="camp?.ends_at"
-                        optional
-                        :error="errors.ends_at"
-                    />
+                    <p class="text-xs text-muted-foreground">
+                        Shown on the camp page with a map link, and in families’
+                        confirmation emails.
+                    </p>
+                    <InputError :message="errors.address" />
                 </div>
 
                 <ImageUpload
@@ -157,70 +169,24 @@ const seoFallback = computed(() => ({
                     />
                     <InputError :message="errors.youtube_url" />
                 </div>
+            </TabsContent>
 
-                <div class="flex items-center gap-3 rounded-md border p-4">
-                    <Switch id="is_published" v-model="isPublished" />
-                    <input
-                        type="hidden"
-                        name="is_published"
-                        :value="isPublished ? 1 : 0"
-                    />
-                    <div>
-                        <Label for="is_published" class="cursor-pointer"
-                            >Published</Label
-                        >
-                        <p class="text-xs text-muted-foreground">
-                            Unpublished camps are hidden from the public site.
-                        </p>
-                    </div>
-                </div>
+            <TabsContent value="schedule" class="pt-4">
+                <!--
+                    Remount after each successful save so rows added before
+                    the save pick up their new ids. Without that, saving
+                    twice would send them as new again and duplicate them.
+                -->
+                <CampScheduleFields
+                    :key="scheduleVersion"
+                    :schedule="camp?.schedule"
+                    :bundle-price="camp?.bundle_price_dollars"
+                    :capacity="camp?.capacity"
+                    :errors="errors"
+                />
             </TabsContent>
 
             <TabsContent value="registration" class="space-y-6 pt-4">
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="grid content-start gap-2">
-                        <Label for="price">Price (USD)</Label>
-                        <div class="relative">
-                            <span
-                                class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground"
-                                >$</span
-                            >
-                            <Input
-                                id="price"
-                                name="price"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                class="pl-7"
-                                :default-value="camp?.price_dollars ?? '0.00'"
-                                required
-                            />
-                        </div>
-                        <p class="text-xs text-muted-foreground">
-                            Enter 0 for a free camp. Paid camps collect payment
-                            through Stripe.
-                        </p>
-                        <InputError :message="errors.price" />
-                    </div>
-                    <div class="grid content-start gap-2">
-                        <Label for="capacity"
-                            >Capacity
-                            <span class="text-muted-foreground"
-                                >(optional)</span
-                            ></Label
-                        >
-                        <Input
-                            id="capacity"
-                            name="capacity"
-                            type="number"
-                            min="1"
-                            :default-value="camp?.capacity ?? ''"
-                            placeholder="Unlimited"
-                        />
-                        <InputError :message="errors.capacity" />
-                    </div>
-                </div>
-
                 <div class="grid gap-4 sm:grid-cols-2">
                     <DateTimePicker
                         name="registration_opens_at"
@@ -250,10 +216,53 @@ const seoFallback = computed(() => ({
             </TabsContent>
         </FormTabs>
 
-        <div class="flex items-center gap-3 border-t pt-6">
-            <Button :disabled="processing">{{
-                camp ? 'Save changes' : 'Create camp'
-            }}</Button>
+        <!--
+            The clicked button sends is_published. Drafts save with whatever is
+            filled in; publishing (or saving a live camp) needs the full schedule.
+            The first button is also what Enter submits.
+        -->
+        <div class="flex flex-wrap items-center gap-3 border-t pt-6">
+            <template v-if="isPublished">
+                <Button
+                    type="submit"
+                    name="is_published"
+                    value="1"
+                    :disabled="processing"
+                    >Save changes</Button
+                >
+                <Button
+                    type="submit"
+                    name="is_published"
+                    value="0"
+                    variant="outline"
+                    :disabled="processing"
+                    >Move to drafts</Button
+                >
+            </template>
+            <template v-else>
+                <Button
+                    type="submit"
+                    name="is_published"
+                    value="0"
+                    variant="outline"
+                    :disabled="processing"
+                    >Save draft</Button
+                >
+                <Button
+                    type="submit"
+                    name="is_published"
+                    value="1"
+                    :disabled="processing"
+                    >Publish</Button
+                >
+            </template>
+            <p class="text-xs text-muted-foreground">
+                {{
+                    isPublished
+                        ? 'Live on the public site.'
+                        : 'Drafts are hidden from the public site and can be saved with details still missing.'
+                }}
+            </p>
             <slot name="actions" />
         </div>
     </Form>

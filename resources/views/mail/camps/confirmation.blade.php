@@ -3,16 +3,37 @@
 
 Hi {{ $registration->parent_name }},
 
-**{{ $registration->playerName() }}** is registered for **{{ $camp->name }}**.
+**{{ $registration->playerName() }}** is signed up for **{{ $camp->name }}**. Here's everything you signed up for.
 
-**When:** {{ $camp->starts_at->format('l, F j, Y \a\t g:i A') }}@if ($camp->ends_at) – {{ $camp->ends_at->isSameDay($camp->starts_at) ? $camp->ends_at->format('g:i A') : $camp->ends_at->format('l, F j, Y \a\t g:i A') }}@endif<br>
+@if ($registration->ageGroup)
+**Age group:** {{ $registration->ageGroup->name }}
+@endif
+
+@foreach ($registration->scheduleBySession() as $session)
+## {{ $session['session'] }}
+
+@foreach ($session['days'] as $day)
+**{{ $day['title'] }}**@if ($day['time']) — {{ $day['time'] }}@endif<br>
+@endforeach
+
+@endforeach
+@if ($camp->location || $camp->address)
+## Where
+
 @if ($camp->location)
-**Where:** {{ $camp->location }}<br>
+**{{ $camp->location }}**<br>
 @endif
-@if ($camp->age_range)
-**Ages:** {{ $camp->age_range }}<br>
+@if ($camp->address)
+{{ $camp->address }}<br>
+[Get directions]({{ $camp->mapUrl() }})
 @endif
 
+@endif
+@if ($registration->order)
+**Order:** {{ $registration->order->number }}<br>
+**Paid:** ${{ number_format($registration->order->total / 100, 2) }}@if ($registration->order->discount > 0) (includes {{ $registration->order->coupon_code }} −${{ number_format($registration->order->discount / 100, 2) }})@endif<br>
+
+@endif
 <x-mail::button :url="route('camps.show', $camp)">
 View camp details
 </x-mail::button>

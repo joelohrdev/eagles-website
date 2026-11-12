@@ -42,6 +42,7 @@ type HomeCamp = {
     starts_at: string;
     ends_at: string | null;
     price: number;
+    has_pricing_options: boolean;
     image_thumbnail_url: string | null;
     registration_state: RegistrationState;
     spots_remaining: number | null;
@@ -472,7 +473,9 @@ const secondaryCta = computed(() =>
                     <div class="p-5">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-sm font-semibold text-sky">{{
-                                camp.price === 0 ? 'Free' : money(camp.price)
+                                camp.price === 0
+                                    ? 'Free'
+                                    : `${camp.has_pricing_options ? 'From ' : ''}${money(camp.price)}`
                             }}</span>
                             <RegistrationStateBadge
                                 :state="camp.registration_state"

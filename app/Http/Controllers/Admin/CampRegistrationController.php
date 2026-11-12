@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\RegistrationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Camp;
+use App\Models\CampAgeGroup;
 use App\Models\CampRegistration;
+use App\Models\CampSession;
+use App\Models\CampSessionDay;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,8 +22,11 @@ class CampRegistrationController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', '');
+        $dayId = $request->integer('day') ?: null;
+        $ageGroupId = $request->integer('age_group') ?: null;
+        $camp->loadSchedule();
 
-        $registrations = $this->query($camp, $search, $status)
+        $registrations = $this->query($camp, $search, $status, $dayId, $ageGroupId)
             ->paginate(25)
             ->withQueryString()
             ->through(fn (CampRegistration $registration) => [
@@ -30,6 +36,8 @@ class CampRegistrationController extends Controller
                 'status_label' => $registration->status->label(),
                 'order_number' => $registration->order?->number,
                 'order_id' => $registration->order_id,
+                'age_group' => $registration->ageGroup?->name,
+                'schedule' => $registration->scheduleLines(),
             ]);
 
         return Inertia::render('admin/camps/Registrations', [
@@ -39,7 +47,12 @@ class CampRegistrationController extends Controller
                 'paid_count' => $camp->registrations()->paid()->count(),
             ],
             'registrations' => $registrations,
-            'filters' => ['q' => $search, 'status' => $status],
+            'filters' => ['q' => $search, 'status' => $status, 'day' => $dayId, 'age_group' => $ageGroupId],
+            'days' => $camp->sessions->flatMap(fn (CampSession $session) => $session->days->map(fn (CampSessionDay $day): array => [
+                'id' => $day->id,
+                'label' => "{$session->name}: {$day->title()}",
+            ]))->values()->all(),
+            'ageGroups' => $camp->ageGroups->map(fn (CampAgeGroup $group): array => ['id' => $group->id, 'name' => $group->name])->all(),
             'statuses' => collect(RegistrationStatus::cases())->map(fn (RegistrationStatus $s) => ['value' => $s->value, 'label' => $s->label()])->all(),
         ]);
     }
@@ -48,21 +61,25 @@ class CampRegistrationController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
         $status = (string) $request->query('status', '');
+        $dayId = $request->integer('day') ?: null;
+        $ageGroupId = $request->integer('age_group') ?: null;
         $filename = 'camp-'.$camp->slug.'-registrations-'.now()->format('Y-m-d').'.csv';
 
-        return response()->streamDownload(function () use ($camp, $search, $status): void {
+        return response()->streamDownload(function () use ($camp, $search, $status, $dayId, $ageGroupId): void {
             $handle = fopen('php://output', 'w');
 
             if ($handle === false) {
                 return;
             }
 
-            fputcsv($handle, ['Player', 'Birthdate', 'Parent/Guardian', 'Email', 'Phone', 'Emergency contact', 'Emergency phone', 'Medical notes', 'Status', 'Order number', 'Registered at']);
+            fputcsv($handle, ['Player', 'Birthdate', 'Age group', 'Days', 'Parent/Guardian', 'Email', 'Phone', 'Emergency contact', 'Emergency phone', 'Medical notes', 'Status', 'Order number', 'Registered at']);
 
-            $this->query($camp, $search, $status)->lazy()->each(function (CampRegistration $registration) use ($handle): void {
+            $this->query($camp, $search, $status, $dayId, $ageGroupId)->lazy()->each(function (CampRegistration $registration) use ($handle): void {
                 fputcsv($handle, [
                     $registration->playerName(),
                     $registration->player_birthdate->toDateString(),
+                    $registration->ageGroup?->name,
+                    implode('; ', $registration->scheduleLines()),
                     $registration->parent_name,
                     $registration->email,
                     $registration->phone,
@@ -91,11 +108,13 @@ class CampRegistrationController extends Controller
     /**
      * @return Builder<CampRegistration>
      */
-    private function query(Camp $camp, string $search, string $status): Builder
+    private function query(Camp $camp, string $search, string $status, ?int $dayId = null, ?int $ageGroupId = null): Builder
     {
         return CampRegistration::query()
             ->whereBelongsTo($camp)
-            ->with('order')
+            ->with(['order', 'ageGroup', 'days.session', 'days.times'])
+            ->when($dayId, fn (Builder $query, int $id) => $query->whereHas('days', fn (Builder $days) => $days->whereKey($id)))
+            ->when($ageGroupId, fn (Builder $query, int $id) => $query->where('camp_age_group_id', $id))
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $q) => $q
                 ->where('player_first_name', 'like', "%{$search}%")
                 ->orWhere('player_last_name', 'like', "%{$search}%")
@@ -103,6 +122,7 @@ class CampRegistrationController extends Controller
                 ->orWhere('email', 'like', "%{$search}%")
             ))
             ->when(RegistrationStatus::tryFrom($status), fn (Builder $query, RegistrationStatus $s) => $query->where('status', $s))
-            ->latest('registered_at');
+            ->latest('registered_at')
+            ->orderByDesc('id');
     }
 }

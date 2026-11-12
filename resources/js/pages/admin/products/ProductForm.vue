@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import FormTabs from '@/components/admin/FormTabs.vue';
 import ImageUpload from '@/components/admin/ImageUpload.vue';
+import MoneyInput from '@/components/admin/MoneyInput.vue';
 import SeoFields from '@/components/admin/SeoFields.vue';
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
@@ -67,23 +68,13 @@ const priceDollars = props.product
 
                 <div class="grid content-start gap-2 sm:max-w-xs">
                     <Label for="price">Price (USD)</Label>
-                    <div class="relative">
-                        <span
-                            class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground"
-                            >$</span
-                        >
-                        <Input
-                            id="price"
-                            name="price"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            class="pl-7"
-                            :default-value="priceDollars"
-                            required
-                            placeholder="25.00"
-                        />
-                    </div>
+                    <MoneyInput
+                        id="price"
+                        name="price"
+                        :default-value="priceDollars"
+                        required
+                        placeholder="25.00"
+                    />
                     <InputError :message="errors.price" />
                 </div>
 

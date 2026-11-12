@@ -59,7 +59,7 @@ class HomeController extends Controller
 
         /** The camps section — cards and the "All camps" button — goes with the page. */
         $camps = $this->pages->isEnabled('camps')
-            ? Camp::query()->published()->upcoming()->ordered()->withCount('activeRegistrations')->take(3)->get()
+            ? Camp::query()->published()->upcoming()->ordered()->with(['ageGroups', 'sessions.days.times'])->take(3)->get()
             : collect();
 
         $camps = $camps
@@ -72,6 +72,7 @@ class HomeController extends Controller
                 'starts_at' => $camp->starts_at,
                 'ends_at' => $camp->ends_at,
                 'price' => $camp->price,
+                'has_pricing_options' => $camp->hasPricingOptions(),
                 'image_thumbnail_url' => $camp->image_thumbnail_url,
                 'registration_state' => $camp->registrationState(),
                 'spots_remaining' => $camp->spotsRemaining(),

@@ -2,7 +2,7 @@
 import { Link, usePoll } from '@inertiajs/vue3';
 import { CalendarDays, CheckCircle2, LoaderCircle, MapPin } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
-import { formatDateTime, money } from '@/lib/format';
+import { money } from '@/lib/format';
 import { home } from '@/routes';
 import { index as campsIndex } from '@/routes/camps';
 import { index as merchIndex } from '@/routes/merch';
@@ -36,10 +36,14 @@ const props = defineProps<{
             postal_code: string | null;
         } | null;
         subtotal: number;
+        discount: number;
+        discount_label: string | null;
         total: number;
         items: Item[];
         camp_registration: {
             player_name: string;
+            age_group: string | null;
+            schedule: string[];
             status: string;
             camp: {
                 name: string;
@@ -134,11 +138,18 @@ if (!props.order.is_pending) {
                 <span class="font-medium text-foreground">{{
                     order.camp_registration.player_name
                 }}</span>
+                <template v-if="order.camp_registration.age_group">
+                    · {{ order.camp_registration.age_group }}</template
+                >
             </p>
             <ul class="mt-4 space-y-2 text-sm">
-                <li class="flex items-center gap-2">
-                    <CalendarDays class="size-4 text-sky" />
-                    {{ formatDateTime(order.camp_registration.camp.starts_at) }}
+                <li
+                    v-for="line in order.camp_registration.schedule"
+                    :key="line"
+                    class="flex items-center gap-2"
+                >
+                    <CalendarDays class="size-4 shrink-0 text-sky" />
+                    {{ line }}
                 </li>
                 <li
                     v-if="order.camp_registration.camp.location"
@@ -192,6 +203,13 @@ if (!props.order.is_pending) {
                 <div class="flex justify-between">
                     <dt class="text-muted-foreground">Subtotal</dt>
                     <dd>{{ money(order.subtotal) }}</dd>
+                </div>
+                <div
+                    v-if="order.discount > 0"
+                    class="flex justify-between text-sky-dark"
+                >
+                    <dt>{{ order.discount_label ?? 'Discount' }}</dt>
+                    <dd>−{{ money(order.discount) }}</dd>
                 </div>
                 <div class="flex justify-between text-base font-semibold">
                     <dt>Total</dt>

@@ -10,17 +10,21 @@ import {
     Users,
 } from '@lucide/vue';
 import { computed } from 'vue';
+import CampScheduleList from '@/components/site/CampScheduleList.vue';
+import PreviewBanner from '@/components/site/PreviewBanner.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
 import ShareButtons from '@/components/site/ShareButtons.vue';
 import YouTubeEmbed from '@/components/site/YouTubeEmbed.vue';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatDateTime, formatTime, money } from '@/lib/format';
 import { index as campsIndex } from '@/routes/camps';
-import type { CampDetail } from '@/types/camps';
+import type { CampDetail, CampPreview } from '@/types/camps';
 
 const props = defineProps<{
     camp: CampDetail;
     registered: boolean;
+    /** Set when staff open the admin preview, which also works for drafts. */
+    preview?: CampPreview | null;
 }>();
 
 const page = usePage();
@@ -34,7 +38,27 @@ const shareText = computed(
 const endsSameDay = computed(
     () =>
         props.camp.ends_at !== null &&
+        props.camp.starts_at !== null &&
         props.camp.starts_at.slice(0, 10) === props.camp.ends_at.slice(0, 10),
+);
+
+/** One session on one day: show its time in the summary cards instead of a schedule. */
+const isSingleDay = computed(
+    () =>
+        props.camp.sessions.length === 1 &&
+        props.camp.sessions[0].days.length === 1,
+);
+
+/** More than one way to book means the listed price is a starting price. */
+const hasOptions = computed(
+    () =>
+        props.camp.sessions.length > 1 ||
+        props.camp.sessions.some((session) => session.day_price !== null),
+);
+
+/** A draft can be previewed before every session has a price. */
+const pricePending = computed(() =>
+    props.camp.sessions.some((session) => session.price === null),
 );
 
 const registrationNote = computed(() => {
@@ -56,6 +80,8 @@ const registrationNote = computed(() => {
 </script>
 
 <template>
+    <PreviewBanner v-if="preview" :preview="preview" />
+
     <section class="relative overflow-hidden bg-navy text-snow">
         <img
             v-if="camp.image_url"
@@ -86,7 +112,7 @@ const registrationNote = computed(() => {
                 {{ camp.name }}
             </h1>
             <p class="mt-3 text-lg text-stone">
-                {{ formatDate(camp.starts_at)
+                {{ camp.starts_at ? formatDate(camp.starts_at) : 'Dates TBD'
                 }}<template v-if="camp.location">
                     · {{ camp.location }}</template
                 >
@@ -125,13 +151,17 @@ const registrationNote = computed(() => {
                         <CalendarDays class="size-4 text-sky" /> Date
                     </dt>
                     <dd class="mt-1 font-medium">
-                        {{ formatDate(camp.starts_at) }}
+                        {{
+                            camp.starts_at
+                                ? formatDate(camp.starts_at)
+                                : 'Dates TBD'
+                        }}
                         <template v-if="camp.ends_at && !endsSameDay">
                             – {{ formatDate(camp.ends_at) }}</template
                         >
                     </dd>
                 </div>
-                <div class="rounded-lg border bg-card p-4">
+                <div v-if="isSingleDay" class="rounded-lg border bg-card p-4">
                     <dt
                         class="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                     >
@@ -144,13 +174,34 @@ const registrationNote = computed(() => {
                         >
                     </dd>
                 </div>
-                <div v-if="camp.location" class="rounded-lg border bg-card p-4">
+                <div
+                    v-if="camp.location || camp.address"
+                    class="rounded-lg border bg-card p-4"
+                >
                     <dt
                         class="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                     >
                         <MapPin class="size-4 text-sky" /> Location
                     </dt>
-                    <dd class="mt-1 font-medium">{{ camp.location }}</dd>
+                    <dd class="mt-1">
+                        <p v-if="camp.location" class="font-medium">
+                            {{ camp.location }}
+                        </p>
+                        <address
+                            v-if="camp.address"
+                            class="text-sm text-muted-foreground not-italic"
+                        >
+                            {{ camp.address }}
+                        </address>
+                        <a
+                            v-if="camp.map_url"
+                            :href="camp.map_url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="mt-1 inline-block text-sm font-medium text-sky-dark hover:underline"
+                            >Get directions</a
+                        >
+                    </dd>
                 </div>
                 <div
                     v-if="camp.age_range"
@@ -179,6 +230,15 @@ const registrationNote = computed(() => {
                 </p>
             </div>
 
+            <div v-if="!isSingleDay || camp.age_groups.length > 0">
+                <h2
+                    class="mb-4 font-display text-2xl font-bold tracking-wide text-navy uppercase dark:text-snow"
+                >
+                    Schedule
+                </h2>
+                <CampScheduleList :camp="camp" />
+            </div>
+
             <YouTubeEmbed
                 v-if="camp.youtube_url"
                 :url="camp.youtube_url"
@@ -202,11 +262,19 @@ const registrationNote = computed(() => {
                 <p
                     class="mt-2 font-display text-4xl font-bold text-navy dark:text-snow"
                 >
-                    {{ camp.is_free ? 'Free' : money(camp.price) }}
+                    <template v-if="pricePending">Price TBD</template>
+                    <template v-else>
+                        <span
+                            v-if="hasOptions && !camp.is_free"
+                            class="mr-1 text-base font-medium text-muted-foreground"
+                            >From</span
+                        >{{ camp.is_free ? 'Free' : money(camp.price) }}
+                    </template>
                 </p>
                 <p class="mt-1 text-sm text-muted-foreground">
                     <template v-if="camp.spots_remaining !== null"
-                        >{{ camp.spots_remaining }} of {{ camp.capacity }} spots
+                        >{{ camp.spots_remaining }}
+                        {{ camp.spots_remaining === 1 ? 'spot' : 'spots' }}
                         remaining · </template
                     >per player
                 </p>
@@ -214,7 +282,17 @@ const registrationNote = computed(() => {
                     {{ registrationNote }}
                 </p>
                 <Button
-                    v-if="camp.registration_state === 'open'"
+                    v-if="preview"
+                    as-child
+                    size="lg"
+                    class="mt-5 w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                >
+                    <Link :href="preview.register_url"
+                        >Try the registration form</Link
+                    >
+                </Button>
+                <Button
+                    v-else-if="camp.registration_state === 'open'"
                     as-child
                     size="lg"
                     class="mt-5 w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"

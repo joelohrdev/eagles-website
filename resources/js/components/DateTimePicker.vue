@@ -5,6 +5,7 @@ import { TimeFieldInput, TimeFieldRoot } from 'reka-ui';
 import type { DateValue, TimeValue } from 'reka-ui';
 import { computed, ref, shallowRef, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
+import RequiredMark from '@/components/RequiredMark.vue';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
@@ -180,7 +181,7 @@ function clear() {
 <template>
     <div class="grid content-start gap-2">
         <Label :for="inputId">
-            {{ label }}
+            {{ label }}<RequiredMark v-if="required" />
             <span v-if="optional" class="text-muted-foreground"
                 >(optional)</span
             >

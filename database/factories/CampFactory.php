@@ -3,6 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\Camp;
+use App\Models\CampDayTime;
+use App\Models\CampSession;
+use App\Models\CampSessionDay;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,6 +13,30 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class CampFactory extends Factory
 {
+    /**
+     * Give each camp one session at its price with a single day on its start date,
+     * matching how camps from before sessions were backfilled.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Camp $camp): void {
+            $session = CampSession::factory()->for($camp)->create(['name' => $camp->name, 'price' => $camp->price]);
+            $day = CampSessionDay::factory()->for($session, 'session')->create(['date' => $camp->starts_at->toDateString()]);
+            CampDayTime::factory()->for($day, 'day')->create([
+                'starts_at' => $camp->starts_at->format('H:i:s'),
+                'ends_at' => $camp->ends_at?->format('H:i:s'),
+            ]);
+        });
+    }
+
+    /**
+     * Create the camp with no sessions, for tests that build their own schedule.
+     */
+    public function withoutSchedule(): static
+    {
+        return $this->afterCreating(fn (Camp $camp) => $camp->sessions()->delete());
+    }
+
     public function definition(): array
     {
         $starts = fake()->dateTimeBetween('+2 weeks', '+3 months');
