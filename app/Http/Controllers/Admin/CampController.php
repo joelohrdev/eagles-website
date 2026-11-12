@@ -14,6 +14,7 @@ use App\Models\CampCoach;
 use App\Models\CampDayTime;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
+use App\Services\ActivityLogger;
 use App\Services\ImageUploader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ class CampController extends Controller
         private SyncSeoMeta $syncSeoMeta,
         private SyncCampSchedule $syncCampSchedule,
         private SyncCampCoaches $syncCampCoaches,
+        private ActivityLogger $activity,
     ) {}
 
     public function index(): Response
@@ -73,6 +75,10 @@ class CampController extends Controller
         $this->syncCampCoaches->handle($camp, $request->coaches());
 
         $this->syncSeoMeta->forModel($camp, $request->validated('seo'), $request->file('seo_share_image'));
+
+        $this->activity->log('camp.created', "Camp {$camp->name} created".($camp->is_published ? ' and published' : ' as a draft'), $camp, [
+            'published' => $camp->is_published,
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Camp created.')]);
 
@@ -151,14 +157,28 @@ class CampController extends Controller
             $attributes['image_path'] = $this->images->replace($request->file('image'), 'camps', $camp->image_path);
         }
 
-        DB::transaction(function () use ($camp, $attributes, $request): void {
+        $wasPublished = $camp->is_published;
+        $changed = [];
+
+        DB::transaction(function () use ($camp, $attributes, $request, &$changed): void {
             $camp->update($attributes);
+            /** Field names only: values can be long text, and the passcode must not end up in the log. */
+            $changed = array_values(array_diff(array_keys($camp->getChanges()), ['updated_at', 'preview_passcode']));
+            if ($camp->wasChanged('preview_passcode')) {
+                $changed[] = 'preview passcode';
+            }
             $this->syncCampSchedule->handle($camp, $request->schedule());
         });
 
         $this->syncCampCoaches->handle($camp, $request->coaches());
 
         $this->syncSeoMeta->forModel($camp, $request->validated('seo'), $request->file('seo_share_image'));
+
+        $this->activity->log('camp.updated', match (true) {
+            ! $wasPublished && $camp->is_published => "Camp {$camp->name} published",
+            $wasPublished && ! $camp->is_published => "Camp {$camp->name} moved to drafts",
+            default => "Camp {$camp->name} updated",
+        }, $camp, ['changed_fields' => $changed]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Camp updated.')]);
 
@@ -174,6 +194,10 @@ class CampController extends Controller
         }
 
         $this->syncCampCoaches->delete($camp->coaches()->get());
+
+        $this->activity->log('camp.deleted', "Camp {$camp->name} deleted", $camp, [
+            'registrations_deleted' => $camp->registrations()->count(),
+        ]);
 
         DB::transaction(function () use ($camp): void {
             /** Registrations go first: their booked days block deleting the camp's schedule. */

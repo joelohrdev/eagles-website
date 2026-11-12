@@ -8,6 +8,7 @@ use App\Mail\TryoutRegistrationConfirmation;
 use App\Mail\TryoutRegistrationReceived;
 use App\Models\Tryout;
 use App\Models\TryoutRegistration;
+use App\Services\ActivityLogger;
 use App\Services\SeoResolver;
 use App\Services\SiteSettings;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +22,7 @@ class TryoutRegistrationController extends Controller
     public function __construct(
         private SeoResolver $seo,
         private SiteSettings $settings,
+        private ActivityLogger $activity,
     ) {}
 
     public function create(Tryout $tryout): Response
@@ -64,6 +66,13 @@ class TryoutRegistrationController extends Controller
         if ($registration === null) {
             return back()->withErrors(['registration' => __('Registration for this tryout is not open.')]);
         }
+
+        $this->activity->log('tryout_registration.created', "{$registration->playerName()} registered for {$tryout->title}", $registration, [
+            'tryout' => $tryout->title,
+            'player' => $registration->playerName(),
+            'parent' => $registration->parent_name,
+            'email' => $registration->email,
+        ]);
 
         Mail::to($registration->email)->queue(new TryoutRegistrationConfirmation($registration));
 

@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Site\QuoteCheckoutRequest;
 use App\Http\Requests\Site\StoreCheckoutRequest;
 use App\Models\Order;
+use App\Services\ActivityLogger;
 use App\Services\Cart;
 use App\Services\SeoResolver;
 use Illuminate\Http\JsonResponse;
@@ -74,12 +75,22 @@ class CheckoutController extends Controller
         CreateMerchOrder $createOrder,
         CreateCheckoutSession $createSession,
         MarkOrderPaid $markOrderPaid,
+        ActivityLogger $activity,
     ): SymfonyResponse|RedirectResponse {
         if ($request->isSpam()) {
             return to_route('cart.index');
         }
 
         $order = $createOrder->handle($request->validated());
+
+        $activity->log('order.created', "Merch order {$order->number} placed by {$order->name}", $order, array_filter([
+            'email' => $order->email,
+            'items' => $order->items()->count(),
+            'total' => $order->total,
+            'discount' => $order->discount ?: null,
+            'discount_label' => $order->discount > 0 ? $order->coupon_code : null,
+            'fulfillment' => $order->fulfillment->label(),
+        ], fn ($value) => $value !== null));
         $successUrl = URL::signedRoute('checkout.success', ['order' => $order->number]);
 
         if ($order->total === 0) {
@@ -181,7 +192,7 @@ class CheckoutController extends Controller
                 return redirect()->to(URL::signedRoute('checkout.success', ['order' => $order->number]));
             }
 
-            $cancelPendingOrder->handle($order);
+            $cancelPendingOrder->handle($order, 'Customer left the Stripe payment page');
         }
 
         if ($order->type === OrderType::Camp && $order->campRegistration?->camp) {

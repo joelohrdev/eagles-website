@@ -4,6 +4,7 @@ import {
     ArrowLeft,
     ChevronDown,
     Download,
+    History,
     Search,
     TicketPercent,
 } from '@lucide/vue';
@@ -70,6 +71,8 @@ const props = defineProps<{
     statuses: { value: string; label: string }[];
     days: { id: number; label: string }[];
     sessions: { id: number; name: string }[];
+    /** The activity log, for admins only; each row links to its history. */
+    historyUrl: string | null;
     ageGroups: { id: number; name: string }[];
 }>();
 
@@ -390,7 +393,22 @@ const rosterUrl = () => roster(props.camp.slug, { query: filterQuery() }).url;
                             <TableCell class="text-sm whitespace-nowrap">{{
                                 formatDateTime(registration.registered_at)
                             }}</TableCell>
-                            <TableCell>
+                            <TableCell
+                                class="flex items-center justify-end gap-1"
+                            >
+                                <Button
+                                    v-if="historyUrl"
+                                    as-child
+                                    variant="ghost"
+                                    size="icon-sm"
+                                >
+                                    <Link
+                                        :href="`${historyUrl}?registration=${registration.id}`"
+                                        :aria-label="`History for ${registration.player_name}`"
+                                        title="History"
+                                        ><History class="size-4"
+                                    /></Link>
+                                </Button>
                                 <ConfirmDelete
                                     :href="
                                         destroy([camp.slug, registration.id])

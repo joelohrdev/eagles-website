@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Tryout;
 use App\Models\TryoutRegistration;
+use App\Services\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,8 +77,14 @@ class TryoutRegistrationController extends Controller
         }, $filename, ['Content-Type' => 'text/csv']);
     }
 
-    public function destroy(Tryout $tryout, TryoutRegistration $registration): RedirectResponse
+    public function destroy(Tryout $tryout, TryoutRegistration $registration, ActivityLogger $activity): RedirectResponse
     {
+        $activity->log('tryout_registration.deleted', "{$registration->playerName()}'s registration for {$tryout->title} deleted", $registration, [
+            'tryout' => $tryout->title,
+            'player' => $registration->playerName(),
+            'email' => $registration->email,
+        ]);
+
         $registration->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Registration removed.')]);

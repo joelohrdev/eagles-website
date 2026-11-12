@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\RegistrationStatus;
 use App\Models\Order;
+use App\Services\ActivityLogger;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -13,7 +14,12 @@ use Illuminate\Support\Facades\DB;
  */
 class CancelPendingOrder
 {
-    public function handle(Order $order): Order
+    public function __construct(private ActivityLogger $activity) {}
+
+    /**
+     * @param  string  $reason  Why, for the activity log ("Customer left the payment page", ...).
+     */
+    public function handle(Order $order, string $reason = 'Cancelled'): Order
     {
         if (! $order->isPending()) {
             return $order;
@@ -27,6 +33,14 @@ class CancelPendingOrder
             }
         });
 
-        return $order->refresh();
+        $order->refresh()->loadMissing('campRegistration');
+
+        $this->activity->log('order.cancelled', "Order {$order->number} cancelled: {$reason}", $order, array_filter([
+            'reason' => $reason,
+            'player' => $order->campRegistration?->playerName(),
+            'total' => $order->total,
+        ], fn ($value) => $value !== null));
+
+        return $order;
     }
 }

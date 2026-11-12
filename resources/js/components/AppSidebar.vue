@@ -5,6 +5,7 @@ import {
     CalendarDays,
     ClipboardList,
     CreditCard,
+    History,
     TicketPercent,
     ExternalLink,
     Globe,
@@ -36,6 +37,7 @@ import {
 } from '@/components/ui/sidebar';
 import { home } from '@/routes';
 import { dashboard } from '@/routes/admin';
+import { index as activityIndex } from '@/routes/admin/activity';
 import { index as campsIndex } from '@/routes/admin/camps';
 import { index as coachesIndex } from '@/routes/admin/coaches';
 import { index as contactIndex } from '@/routes/admin/contact-submissions';
@@ -85,6 +87,7 @@ const adminNavItems = computed<NavItem[]>(() =>
               },
               { title: 'Payments', href: paymentsEdit(), icon: CreditCard },
               { title: 'Coupons', href: couponsIndex(), icon: TicketPercent },
+              { title: 'Activity log', href: activityIndex(), icon: History },
               {
                   title: 'Navigation & Footer',
                   href: navigationIndex(),

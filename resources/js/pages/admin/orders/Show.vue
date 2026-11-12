@@ -2,6 +2,7 @@
 import { Form, Head, Link } from '@inertiajs/vue3';
 import { ExternalLink } from '@lucide/vue';
 import OrderController from '@/actions/App/Http/Controllers/Admin/OrderController';
+import ActivityList from '@/components/admin/activity/ActivityList.vue';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
@@ -18,14 +19,18 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime, money } from '@/lib/format';
+import { index as activityIndex } from '@/routes/admin/activity';
 import { edit as editCamp } from '@/routes/admin/camps';
 import { index, show } from '@/routes/admin/orders';
+import type { ActivityEntry } from '@/types/activity';
 import type { Option, Order } from '@/types/merch';
 
 const props = defineProps<{
     order: Order;
     stripeUrl: string | null;
     statuses: Option[];
+    /** The order's activity log, for admins only (null for staff). */
+    activity: ActivityEntry[] | null;
 }>();
 
 defineOptions({
@@ -206,6 +211,27 @@ const statusOptions = props.statuses.filter(
                         </div>
                     </CardContent>
                 </Card>
+
+                <section v-if="activity" class="space-y-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-base font-semibold">History</h2>
+                        <Link
+                            :href="
+                                activityIndex({ query: { order: order.id } })
+                            "
+                            class="text-sm font-medium text-sky-dark hover:underline"
+                            >Open in activity log</Link
+                        >
+                    </div>
+                    <ActivityList
+                        v-if="activity.length"
+                        :entries="activity"
+                        hide-links
+                    />
+                    <p v-else class="text-sm text-muted-foreground">
+                        Nothing logged for this order yet.
+                    </p>
+                </section>
             </div>
 
             <div class="space-y-6">

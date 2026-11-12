@@ -6,7 +6,9 @@ use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateOrderRequest;
+use App\Models\ActivityLog;
 use App\Models\Order;
+use App\Services\ActivityLogger;
 use App\Services\StripeSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -46,18 +48,29 @@ class OrderController extends Controller
         ]);
     }
 
-    public function show(Order $order): Response
+    public function show(Request $request, Order $order): Response
     {
         $order->load(['items.variant.product', 'campRegistration.camp']);
 
         return Inertia::render('admin/orders/Show', [
             'order' => $order,
+            /** The order's history (and its camp registration's), for admins only. */
+            'activity' => $request->user()?->can('admin') ? ActivityLog::query()
+                ->where(fn ($query) => $query
+                    ->where(fn ($q) => $q->where('subject_type', $order->getMorphClass())->where('subject_id', $order->id))
+                    ->when($order->campRegistration, fn ($q, $registration) => $q->orWhere(fn ($r) => $r->where('subject_type', $registration->getMorphClass())->where('subject_id', $registration->id))))
+                ->latest('created_at')
+                ->orderByDesc('id')
+                ->limit(50)
+                ->get()
+                ->map(fn (ActivityLog $log): array => ActivityLogController::present($log))
+                ->all() : null,
             'stripeUrl' => $this->stripePaymentUrl($order),
             'statuses' => collect(OrderStatus::cases())->map(fn (OrderStatus $s) => ['value' => $s->value, 'label' => $s->label()])->all(),
         ]);
     }
 
-    public function update(UpdateOrderRequest $request, Order $order): RedirectResponse
+    public function update(UpdateOrderRequest $request, Order $order, ActivityLogger $activity): RedirectResponse
     {
         $validated = $request->validated();
         $attributes = ['notes' => $validated['notes'] ?? null];
@@ -68,7 +81,19 @@ class OrderController extends Controller
             $attributes['fulfilled_at'] = $status === OrderStatus::Fulfilled ? now() : null;
         }
 
+        $from = $order->status;
         $order->update($attributes);
+
+        if ($order->wasChanged('status')) {
+            $activity->log('order.status_changed', "Order {$order->number} marked {$order->status->label()} (was {$from->label()})", $order, [
+                'from' => $from->label(),
+                'to' => $order->status->label(),
+            ]);
+        }
+
+        if ($order->wasChanged('notes')) {
+            $activity->log('order.notes_updated', "Notes updated on order {$order->number}", $order);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Order updated.')]);
 

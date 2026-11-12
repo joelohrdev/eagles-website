@@ -7,6 +7,7 @@ use App\Enums\OrderType;
 use App\Enums\RegistrationStatus;
 use App\Mail\OrderRefunded;
 use App\Models\Order;
+use App\Services\ActivityLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Mail;
  */
 class RefundOrder
 {
+    public function __construct(private ActivityLogger $activity) {}
+
     public function handle(Order $order): Order
     {
         if (! $order->isPaid()) {
@@ -31,7 +34,15 @@ class RefundOrder
             }
         });
 
-        Mail::to($order->email)->queue(new OrderRefunded($order->refresh()));
+        $order->refresh()->loadMissing('campRegistration');
+
+        $this->activity->log('order.refunded', 'Order '.$order->number.' refunded ($'.number_format($order->total / 100, 2).')', $order, array_filter([
+            'player' => $order->campRegistration?->playerName(),
+            'total' => $order->total,
+            'payment_intent' => $order->stripe_payment_intent_id,
+        ], fn ($value) => $value !== null));
+
+        Mail::to($order->email)->queue(new OrderRefunded($order));
 
         return $order;
     }

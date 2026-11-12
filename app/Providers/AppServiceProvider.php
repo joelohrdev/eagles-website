@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\PaymentGateway;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\PageVisibility;
 use App\Services\Payments\FakeGateway;
 use App\Services\Payments\StripeGateway;
@@ -33,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SiteSettings::class);
         $this->app->singleton(PageVisibility::class);
         $this->app->scoped(TryoutAvailability::class);
+        /** Scoped so an actingAs() (e.g. "Stripe" for a webhook) lasts one request or job only. */
+        $this->app->scoped(ActivityLogger::class);
 
         $this->app->singleton(PaymentGateway::class, function (): PaymentGateway {
             $stripe = $this->app->make(StripeSettings::class);

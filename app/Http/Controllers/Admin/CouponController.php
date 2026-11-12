@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\StoreCouponRequest;
 use App\Http\Requests\Admin\UpdateCouponRequest;
 use App\Models\Camp;
 use App\Models\Coupon;
+use App\Services\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -43,11 +44,20 @@ class CouponController extends Controller
         return Inertia::render('admin/coupons/Create', self::formOptions());
     }
 
-    public function store(StoreCouponRequest $request): RedirectResponse
+    public function store(StoreCouponRequest $request, ActivityLogger $activity): RedirectResponse
     {
-        DB::transaction(function () use ($request): void {
-            Coupon::query()->create($request->couponAttributes())->camps()->sync($request->campIds());
+        $coupon = DB::transaction(function () use ($request): Coupon {
+            $coupon = Coupon::query()->create($request->couponAttributes());
+            $coupon->camps()->sync($request->campIds());
+
+            return $coupon;
         });
+
+        $activity->log('coupon.created', "Coupon {$coupon->code} created ({$coupon->summary()})", $coupon, [
+            'works_for' => $coupon->applies_to->label(),
+            'max_redemptions' => $coupon->max_redemptions,
+            'active' => $coupon->is_active,
+        ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Coupon created.')]);
 
@@ -71,12 +81,20 @@ class CouponController extends Controller
         ]);
     }
 
-    public function update(UpdateCouponRequest $request, Coupon $coupon): RedirectResponse
+    public function update(UpdateCouponRequest $request, Coupon $coupon, ActivityLogger $activity): RedirectResponse
     {
-        DB::transaction(function () use ($request, $coupon): void {
+        $changed = [];
+
+        DB::transaction(function () use ($request, $coupon, &$changed): void {
             $coupon->update($request->couponAttributes());
-            $coupon->camps()->sync($request->campIds());
+            $changed = array_values(array_diff(array_keys($coupon->getChanges()), ['updated_at']));
+
+            if (array_filter($coupon->camps()->sync($request->campIds()))) {
+                $changed[] = 'camps';
+            }
         });
+
+        $activity->log('coupon.updated', "Coupon {$coupon->code} updated ({$coupon->summary()})", $coupon, ['changed_fields' => $changed]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Coupon updated.')]);
 
@@ -86,8 +104,10 @@ class CouponController extends Controller
     /**
      * Orders keep the code they were placed with, so deleting a coupon only stops new uses.
      */
-    public function destroy(Coupon $coupon): RedirectResponse
+    public function destroy(Coupon $coupon, ActivityLogger $activity): RedirectResponse
     {
+        $activity->log('coupon.deleted', "Coupon {$coupon->code} deleted", $coupon, ['times_used' => $coupon->redemptionCount()]);
+
         $coupon->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Coupon deleted.')]);

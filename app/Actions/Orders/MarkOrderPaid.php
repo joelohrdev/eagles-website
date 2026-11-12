@@ -9,6 +9,7 @@ use App\Mail\CampRegistrationConfirmation;
 use App\Mail\OrderReceipt;
 use App\Mail\OrderReceivedNotification;
 use App\Models\Order;
+use App\Services\ActivityLogger;
 use App\Services\SiteSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -20,7 +21,10 @@ use Illuminate\Support\Facades\Mail;
  */
 class MarkOrderPaid
 {
-    public function __construct(private SiteSettings $settings) {}
+    public function __construct(
+        private SiteSettings $settings,
+        private ActivityLogger $activity,
+    ) {}
 
     public function handle(Order $order, ?string $paymentIntentId = null): Order
     {
@@ -54,6 +58,19 @@ class MarkOrderPaid
         });
 
         $order->refresh()->load(['items', 'campRegistration.camp']);
+
+        $amount = '$'.number_format($order->total / 100, 2);
+        $this->activity->log('order.paid', $order->total > 0
+            ? "Payment of {$amount} received for order {$order->number}"
+            : "Order {$order->number} confirmed (nothing to pay)", $order, array_filter([
+                'type' => $order->type->label(),
+                'player' => $order->campRegistration?->playerName(),
+                'camp' => $order->campRegistration?->camp?->name,
+                'total' => $order->total,
+                'discount' => $order->discount ?: null,
+                'discount_label' => $order->discount > 0 ? $order->coupon_code : null,
+                'payment_intent' => $order->stripe_payment_intent_id,
+            ], fn ($value) => $value !== null));
 
         Mail::to($order->email)->queue(new OrderReceipt($order));
 

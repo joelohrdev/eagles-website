@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\CampController;
 use App\Http\Controllers\Admin\CampRegistrationController;
 use App\Http\Controllers\Admin\CoachController;
@@ -89,6 +90,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('payments/check', [PaymentSettingController::class, 'check'])->name('payments.check');
 
         Route::resource('coupons', CouponController::class)->except(['show']);
+
+        Route::get('activity', [ActivityLogController::class, 'index'])->name('activity.index');
 
         Route::get('navigation', [NavigationController::class, 'index'])->name('navigation.index');
         Route::post('navigation/items', [NavigationController::class, 'store'])->name('navigation.items.store');

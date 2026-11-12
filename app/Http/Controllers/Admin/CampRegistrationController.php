@@ -9,6 +9,7 @@ use App\Models\CampAgeGroup;
 use App\Models\CampRegistration;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
+use App\Services\ActivityLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,6 +49,7 @@ class CampRegistrationController extends Controller
             ],
             'registrations' => $registrations,
             'filters' => $filters,
+            'historyUrl' => $request->user()?->can('admin') ? route('admin.activity.index') : null,
             'sessions' => $camp->sessions->map(fn (CampSession $session): array => ['id' => $session->id, 'name' => $session->name])->all(),
             'days' => $camp->sessions->flatMap(fn (CampSession $session) => $session->days->map(fn (CampSessionDay $day): array => [
                 'id' => $day->id,
@@ -164,8 +166,17 @@ class CampRegistrationController extends Controller
         }, $filename, ['Content-Type' => 'text/csv']);
     }
 
-    public function destroy(Camp $camp, CampRegistration $registration): RedirectResponse
+    public function destroy(Camp $camp, CampRegistration $registration, ActivityLogger $activity): RedirectResponse
     {
+        $activity->log('camp_registration.deleted', "{$registration->playerName()}'s registration for {$camp->name} deleted", $registration, [
+            'camp' => $camp->name,
+            'player' => $registration->playerName(),
+            'email' => $registration->email,
+            'status' => $registration->status->label(),
+            'order' => $registration->order?->number,
+            'days' => $registration->scheduleLines(),
+        ]);
+
         $registration->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Registration deleted.')]);

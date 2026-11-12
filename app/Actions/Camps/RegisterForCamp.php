@@ -15,6 +15,7 @@ use App\Mail\CampRegistrationReceived;
 use App\Models\Camp;
 use App\Models\CampRegistration;
 use App\Models\Order;
+use App\Services\ActivityLogger;
 use App\Services\SiteSettings;
 use App\Support\Payments\CheckoutSession;
 use Illuminate\Support\Arr;
@@ -43,6 +44,7 @@ class RegisterForCamp
         private QuoteCampSelection $quoteCampSelection,
         private MarkOrderPaid $markOrderPaid,
         private PaymentGateway $gateway,
+        private ActivityLogger $activity,
         private SiteSettings $settings,
     ) {}
 
@@ -126,6 +128,20 @@ class RegisterForCamp
 
         $registration = $result['registration']->setRelation('camp', $camp);
         $order = $result['order'];
+
+        $this->activity->log('camp_registration.created', "{$registration->playerName()} registered for {$camp->name}", $registration, [
+            'camp' => $camp->name,
+            'player' => $registration->playerName(),
+            'parent' => $registration->parent_name,
+            'email' => $registration->email,
+            'age_group' => $registration->ageGroup?->name,
+            'days' => $registration->scheduleLines(),
+            'order' => $order?->number,
+            'total' => $order?->total ?? 0,
+            'discount' => $order?->discount ?? 0,
+            'discount_label' => $order?->discount > 0 ? $order->coupon_code : null,
+            'status' => $registration->status->label(),
+        ]);
 
         if ($order !== null && $order->total === 0) {
             /** A coupon covered the whole price: confirm it like a paid order (receipt + org notice), with no trip to Stripe. */

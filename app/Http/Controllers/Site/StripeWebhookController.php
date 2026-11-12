@@ -9,6 +9,7 @@ use App\Contracts\PaymentGateway;
 use App\Exceptions\InvalidWebhookSignature;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\ActivityLogger;
 use App\Services\StripeSettings;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -21,6 +22,7 @@ class StripeWebhookController extends Controller
         private CancelPendingOrder $cancelPendingOrder,
         private RefundOrder $refundOrder,
         private StripeSettings $stripe,
+        private ActivityLogger $activity,
     ) {}
 
     /**
@@ -40,6 +42,7 @@ class StripeWebhookController extends Controller
         }
 
         $this->stripe->recordWebhook(verified: true);
+        $this->activity->actingAs(ActivityLogger::STRIPE);
 
         if (! $event->identifiesOrder()) {
             return response('Ignored', 200);
@@ -59,7 +62,7 @@ class StripeWebhookController extends Controller
         if ($event->isCheckoutCompleted()) {
             $this->markOrderPaid->handle($order, $event->paymentIntentId);
         } elseif ($event->isCheckoutExpired()) {
-            $this->cancelPendingOrder->handle($order);
+            $this->cancelPendingOrder->handle($order, 'Stripe payment page expired');
         } elseif ($event->isFullyRefunded()) {
             $this->refundOrder->handle($order);
         }
