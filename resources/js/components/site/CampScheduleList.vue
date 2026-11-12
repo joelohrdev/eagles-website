@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FormattedText from '@/components/site/FormattedText.vue';
 import { money } from '@/lib/format';
 import type { CampDetail } from '@/types/camps';
 
@@ -62,12 +63,11 @@ function fullGroups(
                     >
                 </p>
             </div>
-            <p
+            <FormattedText
                 v-if="session.description"
+                :text="session.description"
                 class="px-4 pt-3 text-sm text-muted-foreground"
-            >
-                {{ session.description }}
-            </p>
+            />
             <ul class="divide-y">
                 <li
                     v-for="day in session.days"

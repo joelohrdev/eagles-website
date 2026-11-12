@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Mail } from '@lucide/vue';
 import { ref } from 'vue';
+import FormattedText from '@/components/site/FormattedText.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     Dialog,
@@ -132,12 +133,11 @@ function initials(name: string): string {
                         </DialogDescription>
                     </div>
                 </DialogHeader>
-                <p
+                <FormattedText
                     v-if="selectedCoach.bio"
-                    class="text-sm leading-relaxed whitespace-pre-line text-muted-foreground"
-                >
-                    {{ selectedCoach.bio }}
-                </p>
+                    :text="selectedCoach.bio"
+                    class="text-sm leading-relaxed text-muted-foreground"
+                />
                 <p v-else class="text-sm text-muted-foreground italic">
                     Bio coming soon.
                 </p>

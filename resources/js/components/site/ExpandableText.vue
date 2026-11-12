@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ChevronDown } from '@lucide/vue';
 import { onBeforeUnmount, onMounted, ref, useId } from 'vue';
+import FormattedText from '@/components/site/FormattedText.vue';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -11,16 +12,20 @@ import { Button } from '@/components/ui/button';
 const props = withDefaults(
     defineProps<{
         text: string;
-        /** Lines shown before "Read more"; must match a line-clamp-* class below. */
+        /** Roughly how many lines show before "Read more". */
         lines?: 4 | 6 | 8;
     }>(),
     { lines: 6 },
 );
 
+/**
+ * A max height rather than line-clamp, because the text can contain lists
+ * and paragraphs (FormattedText), which line-clamp can't cut cleanly.
+ */
 const CLAMP: Record<number, string> = {
-    4: 'line-clamp-4',
-    6: 'line-clamp-6',
-    8: 'line-clamp-8',
+    4: 'max-h-28',
+    6: 'max-h-40',
+    8: 'max-h-52',
 };
 
 const contentId = useId();
@@ -54,14 +59,14 @@ onBeforeUnmount(() => observer?.disconnect());
 <template>
     <div>
         <div class="relative">
-            <p
+            <div
                 :id="contentId"
                 ref="content"
-                class="whitespace-pre-line"
+                class="overflow-hidden"
                 :class="expanded ? '' : CLAMP[props.lines]"
             >
-                {{ text }}
-            </p>
+                <FormattedText :text="text" />
+            </div>
             <!-- Fade the last lines so it's obvious the text continues. -->
             <div
                 v-if="overflows && !expanded"
