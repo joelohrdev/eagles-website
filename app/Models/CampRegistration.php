@@ -103,11 +103,11 @@ class CampRegistration extends Model
     {
         $this->loadMissing(['days.times', 'days.session']);
 
-        return $this->days->map(function (CampSessionDay $day): string {
+        return array_values($this->days->map(function (CampSessionDay $day): string {
             $time = $day->timeFor($this->camp_age_group_id) ?? $day->times->first();
 
             return "{$day->session->name}: {$day->title()}".($time ? " · {$time->range()}" : '');
-        })->all();
+        })->all());
     }
 
     /**
@@ -120,18 +120,17 @@ class CampRegistration extends Model
     {
         $this->loadMissing(['days.times', 'days.session']);
 
-        return $this->days
+        return array_values($this->days
             ->groupBy('camp_session_id')
             ->map(fn ($days): array => [
                 'session' => $days->first()->session->name,
-                'days' => $days->map(function (CampSessionDay $day): array {
+                'days' => array_values($days->map(function (CampSessionDay $day): array {
                     $time = $day->timeFor($this->camp_age_group_id) ?? $day->times->first();
 
                     return ['title' => $day->title(), 'time' => $time?->range()];
-                })->values()->all(),
+                })->all()),
             ])
-            ->values()
-            ->all();
+            ->all());
     }
 
     public function playerName(): string

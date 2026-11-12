@@ -58,7 +58,7 @@ class RegisterForCamp
      */
     public function handle(Camp $camp, array $data): array
     {
-        $dayIds = array_map('intval', $data['days'] ?? []);
+        $dayIds = array_values(array_map('intval', $data['days'] ?? []));
         $ageGroupId = isset($data['camp_age_group_id']) ? (int) $data['camp_age_group_id'] : null;
         $couponCode = $data['coupon_code'] ?? null;
         $attributes = Arr::except($data, ['days', 'camp_age_group_id', 'coupon_code']);
@@ -137,8 +137,8 @@ class RegisterForCamp
             'age_group' => $registration->ageGroup?->name,
             'days' => $registration->scheduleLines(),
             'order' => $order?->number,
-            'total' => $order?->total ?? 0,
-            'discount' => $order?->discount ?? 0,
+            'total' => $order->total ?? 0,
+            'discount' => $order->discount ?? 0,
             'discount_label' => $order?->discount > 0 ? $order->coupon_code : null,
             'status' => $registration->status->label(),
         ]);

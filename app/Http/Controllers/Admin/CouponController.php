@@ -123,7 +123,7 @@ class CouponController extends Controller
         return [
             'types' => array_map(fn (CouponType $type): array => ['value' => $type->value, 'label' => $type->label()], CouponType::cases()),
             'scopes' => array_map(fn (CouponScope $scope): array => ['value' => $scope->value, 'label' => $scope->label()], CouponScope::cases()),
-            'camps' => Camp::query()->orderByDesc('starts_at')->get(['id', 'name'])->map(fn (Camp $camp): array => ['id' => $camp->id, 'name' => $camp->name])->all(),
+            'camps' => array_values(Camp::query()->orderByDesc('starts_at')->get(['id', 'name'])->map(fn (Camp $camp): array => ['id' => $camp->id, 'name' => $camp->name])->all()),
         ];
     }
 }

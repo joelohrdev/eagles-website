@@ -60,7 +60,7 @@ class CampPreviewController extends Controller
 
         return response()->json($quoteCampSelection->handle(
             $camp,
-            array_map('intval', $validated['days']),
+            array_values(array_map('intval', $validated['days'])),
             $validated['camp_age_group_id'] ?? null,
             $validated['coupon_code'] ?? null,
         )->toArray());

@@ -120,8 +120,8 @@ class CampController extends Controller
 
         return [
             'bundle_price' => $camp->sessions->count() > 1 ? $camp->bundle_price : null,
-            'age_groups' => $camp->ageGroups->map(fn (CampAgeGroup $group): array => ['id' => $group->id, 'name' => $group->name])->all(),
-            'sessions' => $camp->sessions->map(fn (CampSession $session): array => [
+            'age_groups' => array_values($camp->ageGroups->map(fn (CampAgeGroup $group): array => ['id' => $group->id, 'name' => $group->name])->all()),
+            'sessions' => array_values($camp->sessions->map(fn (CampSession $session): array => [
                 'id' => $session->id,
                 'name' => $session->name,
                 'description' => $session->description,
@@ -141,7 +141,7 @@ class CampController extends Controller
                         'remaining' => $slot['remaining'],
                     ])->values()->all(),
                 ])->all(),
-            ])->all(),
+            ])->all()),
         ];
     }
 

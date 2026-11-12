@@ -51,7 +51,7 @@ class ActivityLogger
             'subject_type' => $subject?->getMorphClass(),
             'subject_id' => $subject?->getKey(),
             'user_id' => $user?->getAuthIdentifier(),
-            'actor' => $user?->name ?? $this->actor ?? ($fromWeb ? self::CUSTOMER : self::SYSTEM),
+            'actor' => $user->name ?? $this->actor ?? ($fromWeb ? self::CUSTOMER : self::SYSTEM),
             'properties' => $properties === [] ? null : $properties,
             'ip_address' => $fromWeb && $this->actor === null ? $request->ip() : null,
             'created_at' => now(),

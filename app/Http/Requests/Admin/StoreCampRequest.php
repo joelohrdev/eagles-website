@@ -6,6 +6,7 @@ use App\Http\Requests\Concerns\HasSeoRules;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Validator;
 
 /**
@@ -38,7 +39,7 @@ class StoreCampRequest extends FormRequest
              * Coach rows keep their keys: uploaded photos sit in the files bag
              * under coaches.{key}.photo, so re-indexing would detach them.
              */
-            'coaches' => collect($this->input('coaches', []))
+            'coaches' => $this->collect('coaches')
                 ->filter(fn ($coach, $key): bool => is_array($coach) && (
                     filled($coach['id'] ?? null)
                     || filled($coach['name'] ?? null)
@@ -47,15 +48,15 @@ class StoreCampRequest extends FormRequest
                     || $this->hasFile("coaches.{$key}.photo")
                 ))
                 ->all(),
-            'age_groups' => collect($this->input('age_groups', []))
+            'age_groups' => $this->collect('age_groups')
                 ->filter(fn ($group): bool => is_array($group) && (filled($group['name'] ?? null) || filled($group['capacity'] ?? null)))
                 ->values()
                 ->all(),
-            'sessions' => collect($this->input('sessions', []))
+            'sessions' => $this->collect('sessions')
                 ->filter(fn ($session): bool => is_array($session))
                 ->map(fn (array $session): array => [
                     ...$session,
-                    'days' => collect($session['days'] ?? [])
+                    'days' => self::rows($session['days'] ?? null)
                         ->filter(fn ($day): bool => is_array($day) && ! self::isBlankDay($day))
                         ->values()
                         ->all(),
@@ -81,7 +82,7 @@ class StoreCampRequest extends FormRequest
         return blank($day['id'] ?? null)
             && blank($day['date'] ?? null)
             && blank($day['label'] ?? null)
-            && collect($day['times'] ?? [])->every(fn ($time): bool => ! is_array($time) || (blank($time['starts_at'] ?? null) && blank($time['ends_at'] ?? null)));
+            && self::rows($day['times'] ?? null)->every(fn ($time): bool => ! is_array($time) || (blank($time['starts_at'] ?? null) && blank($time['ends_at'] ?? null)));
     }
 
     /**
@@ -204,12 +205,12 @@ class StoreCampRequest extends FormRequest
      */
     private function checkTimes(Validator $validator): void
     {
-        $groupKeys = collect($this->input('age_groups', []))->pluck('key')->map(fn ($key) => (string) $key)->sort()->values()->all();
+        $groupKeys = $this->collect('age_groups')->pluck('key')->map(fn ($key) => (string) $key)->sort()->values()->all();
         $expected = $groupKeys === [] ? [null] : $groupKeys;
 
         foreach ($this->input('sessions', []) as $s => $session) {
             foreach ($session['days'] ?? [] as $d => $day) {
-                $times = collect($day['times'] ?? []);
+                $times = self::rows($day['times'] ?? null);
                 $keys = $times
                     ->filter(fn (array $time): bool => filled($time['starts_at'] ?? null))
                     ->map(fn (array $time) => filled($time['age_group_key'] ?? null) ? (string) $time['age_group_key'] : null);
@@ -265,36 +266,38 @@ class StoreCampRequest extends FormRequest
      */
     public function schedule(): array
     {
+        $ageGroups = $this->safe()->collect('age_groups');
+
         /** Times for an age group that was left blank (and so dropped) have nowhere to go. */
-        $groupKeys = collect($this->validated('age_groups') ?? [])->map(fn (array $group): string => (string) $group['key'])->all();
+        $groupKeys = $ageGroups->map(fn (array $group): string => (string) $group['key'])->all();
 
         return [
-            'age_groups' => collect($this->validated('age_groups') ?? [])->map(fn (array $group): array => [
+            'age_groups' => array_values($ageGroups->map(fn (array $group): array => [
                 'key' => (string) $group['key'],
                 'id' => isset($group['id']) ? (int) $group['id'] : null,
-                'name' => $group['name'],
+                'name' => (string) $group['name'],
                 'capacity' => isset($group['capacity']) ? (int) $group['capacity'] : null,
-            ])->values()->all(),
-            'sessions' => collect($this->validated('sessions') ?? [])->map(fn (array $session): array => [
+            ])->all()),
+            'sessions' => array_values($this->safe()->collect('sessions')->map(fn (array $session): array => [
                 'id' => isset($session['id']) ? (int) $session['id'] : null,
-                'name' => $session['name'],
-                'description' => $session['description'] ?? null,
+                'name' => (string) $session['name'],
+                'description' => self::optionalString($session['description'] ?? null),
                 'price' => self::toCents($session['price'] ?? null),
                 'day_price' => self::toCents($session['day_price'] ?? null),
-                'days' => collect($session['days'] ?? [])->map(fn (array $day): array => [
+                'days' => array_values(self::rows($session['days'] ?? null)->map(fn (array $day): array => [
                     'id' => isset($day['id']) ? (int) $day['id'] : null,
-                    'date' => $day['date'] ?? null,
-                    'label' => $day['label'] ?? null,
-                    'times' => collect($day['times'] ?? [])
+                    'date' => self::optionalString($day['date'] ?? null),
+                    'label' => self::optionalString($day['label'] ?? null),
+                    'times' => array_values(self::rows($day['times'] ?? null)
                         ->filter(fn (array $time): bool => filled($time['starts_at'] ?? null) || filled($time['ends_at'] ?? null))
                         ->filter(fn (array $time): bool => blank($time['age_group_key'] ?? null) ? $groupKeys === [] : in_array((string) $time['age_group_key'], $groupKeys, true))
                         ->map(fn (array $time): array => [
-                            'age_group_key' => filled($time['age_group_key'] ?? null) ? (string) $time['age_group_key'] : null,
-                            'starts_at' => $time['starts_at'] ?? null,
-                            'ends_at' => $time['ends_at'] ?? null,
-                        ])->values()->all(),
-                ])->values()->all(),
-            ])->values()->all(),
+                            'age_group_key' => self::optionalString($time['age_group_key'] ?? null),
+                            'starts_at' => self::optionalString($time['starts_at'] ?? null),
+                            'ends_at' => self::optionalString($time['ends_at'] ?? null),
+                        ])->all()),
+                ])->all()),
+            ])->all()),
         ];
     }
 
@@ -320,17 +323,38 @@ class StoreCampRequest extends FormRequest
      */
     public function coaches(): array
     {
-        return collect($this->validated('coaches') ?? [])
-            ->map(fn (array $coach, int|string $key): array => [
-                'id' => isset($coach['id']) ? (int) $coach['id'] : null,
-                'name' => $coach['name'],
-                'title' => $coach['title'] ?? null,
-                'bio' => $coach['bio'] ?? null,
-                'photo' => $this->file("coaches.{$key}.photo"),
-                'remove_photo' => filter_var($coach['remove_photo'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            ])
-            ->values()
-            ->all();
+        return array_values($this->safe()->collect('coaches')
+            ->map(function (array $coach, int|string $key): array {
+                $photo = $this->file("coaches.{$key}.photo");
+
+                return [
+                    'id' => isset($coach['id']) ? (int) $coach['id'] : null,
+                    'name' => (string) $coach['name'],
+                    'title' => self::optionalString($coach['title'] ?? null),
+                    'bio' => self::optionalString($coach['bio'] ?? null),
+                    'photo' => $photo instanceof UploadedFile ? $photo : null,
+                    'remove_photo' => filter_var($coach['remove_photo'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                ];
+            })
+            ->all());
+    }
+
+    /**
+     * A nested list from the form (days, times) as a collection; anything that isn't an array is empty.
+     *
+     * @return Collection<array-key, mixed>
+     */
+    private static function rows(mixed $rows): Collection
+    {
+        return new Collection(is_array($rows) ? $rows : []);
+    }
+
+    /**
+     * A validated optional text field: null when left empty.
+     */
+    private static function optionalString(mixed $value): ?string
+    {
+        return blank($value) ? null : (string) $value;
     }
 
     private static function toCents(mixed $dollars): ?int

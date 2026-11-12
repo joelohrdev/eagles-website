@@ -38,7 +38,7 @@ class CampRegistrationController extends Controller
                 'schedule' => $registration->scheduleLines(),
                 /** The coupon code (or "Multi-session price") and amount taken off, when the order had a discount. */
                 'discount_label' => $registration->order?->discount > 0 ? $registration->order->coupon_code : null,
-                'discount' => $registration->order?->discount ?? 0,
+                'discount' => $registration->order->discount ?? 0,
             ]);
 
         return Inertia::render('admin/camps/Registrations', [

@@ -50,7 +50,7 @@ class CampRegistrationController extends Controller
     {
         $quote = $quoteCampSelection->handle(
             $camp,
-            array_map('intval', $request->validated('days')),
+            array_values(array_map('intval', $request->validated('days'))),
             $request->validated('camp_age_group_id'),
             $request->validated('coupon_code'),
         );

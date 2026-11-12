@@ -99,6 +99,6 @@ class StoreCouponRequest extends FormRequest
             return [];
         }
 
-        return array_map('intval', $this->validated('camp_ids') ?? []);
+        return array_values(array_map('intval', $this->validated('camp_ids') ?? []));
     }
 }

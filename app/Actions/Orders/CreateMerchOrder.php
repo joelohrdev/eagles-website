@@ -50,7 +50,7 @@ class CreateMerchOrder
     }
 
     /**
-     * @param  Collection<int, array{unit_price: int, quantity: int, line_total: int}>  $lines
+     * @param  Collection<int, array{variant: ProductVariant, quantity: int, unit_price: int, line_total: int}>  $lines
      * @return array{subtotal: int, discount: int, coupon_code: string|null, shipping: int, total: int}
      */
     private function price(Collection $lines, ?Coupon $coupon, Fulfillment $fulfillment): array
@@ -58,14 +58,14 @@ class CreateMerchOrder
         $subtotal = (int) $lines->sum('line_total');
         $discount = $coupon ? CouponCalculator::discount(
             $coupon,
-            $lines->map(fn (array $line): DiscountableLine => new DiscountableLine($line['unit_price'], $line['quantity']))->values()->all(),
+            array_values($lines->map(fn (array $line): DiscountableLine => new DiscountableLine($line['unit_price'], $line['quantity']))->all()),
         ) : 0;
         $shipping = $fulfillment === Fulfillment::Shipping ? self::SHIPPING_FLAT_CENTS : 0;
 
         return [
             'subtotal' => $subtotal,
             'discount' => $discount,
-            'coupon_code' => $discount > 0 ? $coupon?->code : null,
+            'coupon_code' => $discount > 0 ? $coupon->code : null,
             'shipping' => $shipping,
             'total' => $subtotal - $discount + $shipping,
         ];

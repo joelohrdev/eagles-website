@@ -38,7 +38,7 @@ final readonly class CampQuoteLine
             'session_id' => $this->session->id,
             'name' => $this->session->name,
             'description' => $this->description(),
-            'day_ids' => $this->days->pluck('id')->values()->all(),
+            'day_ids' => array_values($this->days->pluck('id')->all()),
             'whole_session' => $this->wholeSession,
             'price' => $this->price,
         ];

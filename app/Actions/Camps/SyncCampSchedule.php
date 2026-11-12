@@ -11,6 +11,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use stdClass;
 
 /**
  * Save a camp's age groups, sessions, days and times from the admin form:
@@ -116,16 +117,18 @@ class SyncCampSchedule
      */
     private function syncSummary(Camp $camp): Camp
     {
+        /** Rows mixing columns from three tables, so read as plain rows rather than CampDayTime models. */
         $times = CampDayTime::query()
             ->join('camp_session_days', 'camp_session_days.id', '=', 'camp_day_times.camp_session_day_id')
             ->join('camp_sessions', 'camp_sessions.id', '=', 'camp_session_days.camp_session_id')
             ->where('camp_sessions.camp_id', $camp->id)
             ->whereNotNull('camp_session_days.date')
             ->whereNotNull('camp_day_times.starts_at')
+            ->toBase()
             ->get(['camp_session_days.date', 'camp_day_times.starts_at', 'camp_day_times.ends_at']);
 
-        $starts = $times->map(fn (CampDayTime $time): Carbon => Carbon::parse(substr((string) $time->date, 0, 10).' '.$time->starts_at))->min();
-        $ends = $times->map(fn (CampDayTime $time): Carbon => Carbon::parse(substr((string) $time->date, 0, 10).' '.($time->ends_at ?? $time->starts_at)))->max();
+        $starts = $times->map(fn (stdClass $time): Carbon => Carbon::parse(substr((string) $time->date, 0, 10).' '.$time->starts_at))->min();
+        $ends = $times->map(fn (stdClass $time): Carbon => Carbon::parse(substr((string) $time->date, 0, 10).' '.($time->ends_at ?? $time->starts_at)))->max();
 
         $sessions = $camp->sessions()->get();
         $cheapest = $sessions

@@ -174,7 +174,7 @@ class Camp extends Model
             foreach ($session->days as $day) {
                 foreach ($groups as $group) {
                     $capacity = $group ? $group->capacity : $this->capacity;
-                    $count = $taken[$day->id.':'.($group?->id ?? '')] ?? 0;
+                    $count = $taken[$day->id.':'.($group->id ?? '')] ?? 0;
 
                     $slots[] = [
                         'day_id' => $day->id,
