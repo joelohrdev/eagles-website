@@ -4,6 +4,7 @@ use App\Enums\OrderStatus;
 use App\Enums\RegistrationStatus;
 use App\Mail\OrderReceipt;
 use App\Mail\OrderReceivedNotification;
+use App\Mail\OrderRefunded;
 use App\Models\CampRegistration;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -104,7 +105,8 @@ test('an expired checkout leaves an already paid order alone', function () {
     expect($order->refresh()->status)->toBe(OrderStatus::Paid);
 });
 
-test('a full refund marks the order refunded and releases the camp registration', function () {
+test('a full refund marks the order refunded, releases the camp registration, and emails the customer once', function () {
+    Mail::fake();
     $order = Order::factory()->camp()->paid()->create(['stripe_payment_intent_id' => 'pi_refund_me']);
     $registration = CampRegistration::factory()->create(['order_id' => $order->id, 'status' => RegistrationStatus::Paid]);
 
@@ -117,6 +119,8 @@ test('a full refund marks the order refunded and releases the camp registration'
     webhook(['type' => 'charge.refunded', 'payment_intent' => 'pi_refund_me', 'refunded' => true])->assertOk();
 
     expect($order->refresh()->status)->toBe(OrderStatus::Refunded);
+    Mail::assertQueued(OrderRefunded::class, fn (OrderRefunded $mail) => $mail->hasTo($order->email));
+    Mail::assertQueuedCount(1);
 });
 
 test('a full refund also closes a fulfilled merch order', function () {
@@ -128,15 +132,28 @@ test('a full refund also closes a fulfilled merch order', function () {
 });
 
 test('a partial refund leaves the order paid for staff to review', function () {
+    Mail::fake();
     $order = Order::factory()->paid()->create(['stripe_payment_intent_id' => 'pi_partial']);
 
     webhook(['type' => 'charge.refunded', 'payment_intent' => 'pi_partial', 'refunded' => false])->assertOk();
 
     expect($order->refresh()->status)->toBe(OrderStatus::Paid);
+    Mail::assertNothingQueued();
 });
 
 test('a refund for an unknown payment intent is acknowledged', function () {
     webhook(['type' => 'charge.refunded', 'payment_intent' => 'pi_nobody', 'refunded' => true])
         ->assertOk()
         ->assertSee('Unknown order');
+});
+
+test('the refund email shows the refunded amount and the cancelled camp registration', function () {
+    $order = Order::factory()->camp()->create(['total' => 12500]);
+    $registration = CampRegistration::factory()->create(['order_id' => $order->id, 'player_first_name' => 'Casey', 'player_last_name' => 'Rivera']);
+
+    (new OrderRefunded($order))->assertSeeInHtml($order->number)
+        ->assertSeeInHtml('$125.00')
+        ->assertSeeInHtml($registration->camp->name)
+        ->assertSeeInHtml('Casey Rivera')
+        ->assertSeeInHtml('This registration has been cancelled.');
 });
