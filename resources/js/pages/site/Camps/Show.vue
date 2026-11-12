@@ -44,6 +44,33 @@ const endsSameDay = computed(
         props.camp.starts_at.slice(0, 10) === props.camp.ends_at.slice(0, 10),
 );
 
+/**
+ * "Sat, Nov 21 – Wed, Nov 25, 2026": the year once when both ends share it,
+ * so the range fits on one line in the details row.
+ */
+const dateRange = computed(() => {
+    const { starts_at: start, ends_at: end } = props.camp;
+
+    if (!start) {
+        return 'Dates TBD';
+    }
+
+    if (!end || endsSameDay.value) {
+        return formatDate(start);
+    }
+
+    const sameYear = start.slice(0, 4) === end.slice(0, 4);
+    const startLabel = new Intl.DateTimeFormat('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        ...(sameYear ? {} : { year: 'numeric' }),
+        timeZone: 'America/Chicago',
+    }).format(new Date(start));
+
+    return `${startLabel} – ${formatDate(end)}`;
+});
+
 /** One session on one day: show its time in the summary cards instead of a schedule. */
 const isSingleDay = computed(
     () =>
@@ -145,25 +172,24 @@ const registrationNote = computed(() => {
                 </div>
             </div>
 
-            <dl class="grid gap-4 sm:grid-cols-2">
-                <div class="rounded-lg border bg-card p-4">
+            <!-- One card, one row on larger screens: date, time (one-day camps), location, ages. -->
+            <dl
+                class="flex flex-col divide-y rounded-lg border bg-card p-4 sm:flex-row sm:divide-x sm:divide-y-0"
+            >
+                <div
+                    class="flex-1 py-3 first:pt-0 last:pb-0 sm:px-5 sm:py-0 sm:first:pl-0 sm:last:pr-0"
+                >
                     <dt
                         class="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                     >
                         <CalendarDays class="size-4 text-sky" /> Date
                     </dt>
-                    <dd class="mt-1 font-medium">
-                        {{
-                            camp.starts_at
-                                ? formatDate(camp.starts_at)
-                                : 'Dates TBD'
-                        }}
-                        <template v-if="camp.ends_at && !endsSameDay">
-                            – {{ formatDate(camp.ends_at) }}</template
-                        >
-                    </dd>
+                    <dd class="mt-1 font-medium">{{ dateRange }}</dd>
                 </div>
-                <div v-if="isSingleDay" class="rounded-lg border bg-card p-4">
+                <div
+                    v-if="isSingleDay"
+                    class="flex-1 py-3 first:pt-0 last:pb-0 sm:px-5 sm:py-0 sm:first:pl-0 sm:last:pr-0"
+                >
                     <dt
                         class="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                     >
@@ -178,7 +204,7 @@ const registrationNote = computed(() => {
                 </div>
                 <div
                     v-if="camp.location || camp.address"
-                    class="rounded-lg border bg-card p-4"
+                    class="flex-1 py-3 first:pt-0 last:pb-0 sm:px-5 sm:py-0 sm:first:pl-0 sm:last:pr-0"
                 >
                     <dt
                         class="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
@@ -207,7 +233,7 @@ const registrationNote = computed(() => {
                 </div>
                 <div
                     v-if="camp.age_range"
-                    class="rounded-lg border bg-card p-4"
+                    class="flex-1 py-3 first:pt-0 last:pb-0 sm:px-5 sm:py-0 sm:first:pl-0 sm:last:pr-0"
                 >
                     <dt
                         class="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"

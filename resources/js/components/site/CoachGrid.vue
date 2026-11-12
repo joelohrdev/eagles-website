@@ -39,10 +39,29 @@ const props = withDefaults(
     { fallbackTitle: 'Eagles coaching staff', layout: 'wide' },
 );
 
-const gridClass = computed(() =>
-    props.layout === 'narrow'
-        ? 'grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3'
-        : 'grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4',
+const narrow = computed(() => props.layout === 'narrow');
+
+/**
+ * "narrow" (the camp page's main column) uses compact cards, smaller photos,
+ * less padding and no "View profile" line, so four fit on a row without
+ * a lot of empty space.
+ */
+const classes = computed(() =>
+    narrow.value
+        ? {
+              grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4',
+              card: 'gap-2 p-3 sm:p-4',
+              avatar: 'size-20 ring-2 sm:size-24',
+              initials: 'text-2xl sm:text-3xl',
+              name: 'text-lg leading-tight',
+          }
+        : {
+              grid: 'grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4',
+              card: 'gap-3 p-5 sm:p-6',
+              avatar: 'size-24 ring-4 sm:size-32',
+              initials: 'text-3xl sm:text-4xl',
+              name: 'text-xl sm:text-2xl',
+          },
 );
 
 /**
@@ -73,16 +92,18 @@ function initials(name: string): string {
 
 <template>
     <div>
-        <ul :class="gridClass">
+        <ul :class="classes.grid">
             <li v-for="coach in coaches" :key="coach.id">
                 <button
                     type="button"
-                    class="group flex size-full cursor-pointer flex-col items-center gap-3 rounded-lg border bg-card p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-sky hover:shadow-md focus-visible:ring-2 focus-visible:ring-sky focus-visible:outline-none sm:p-6"
+                    class="group flex size-full cursor-pointer flex-col items-center rounded-lg border bg-card text-center shadow-sm transition hover:-translate-y-0.5 hover:border-sky hover:shadow-md focus-visible:ring-2 focus-visible:ring-sky focus-visible:outline-none"
+                    :class="classes.card"
                     :aria-label="`View ${coach.name}'s profile`"
                     @click="openCoach(coach)"
                 >
                     <Avatar
-                        class="size-24 ring-4 ring-sky/30 transition group-hover:ring-sky sm:size-32"
+                        class="ring-sky/30 transition group-hover:ring-sky"
+                        :class="classes.avatar"
                     >
                         <AvatarImage
                             v-if="coach.photo_url"
@@ -92,14 +113,16 @@ function initials(name: string): string {
                             loading="lazy"
                         />
                         <AvatarFallback
-                            class="bg-navy font-display text-3xl font-bold text-snow sm:text-4xl"
+                            class="bg-navy font-display font-bold text-snow"
+                            :class="classes.initials"
                         >
                             {{ initials(coach.name) }}
                         </AvatarFallback>
                     </Avatar>
                     <span class="grid gap-1">
                         <span
-                            class="font-display text-xl font-bold tracking-wide text-navy uppercase sm:text-2xl dark:text-snow"
+                            class="font-display font-bold tracking-wide text-navy uppercase dark:text-snow"
+                            :class="classes.name"
                         >
                             {{ coach.name }}
                         </span>
@@ -115,6 +138,7 @@ function initials(name: string): string {
                         </span>
                     </span>
                     <span
+                        v-if="!narrow"
                         class="mt-auto text-xs font-medium text-muted-foreground group-hover:text-sky-dark"
                     >
                         View profile
