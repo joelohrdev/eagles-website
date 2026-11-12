@@ -324,7 +324,7 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                     v-if="!camp.is_free"
                     class="mt-3 text-xs text-muted-foreground"
                 >
-                    Your spot is held for 30 minutes while you complete payment.
+                    Your spot is held for 35 minutes while you complete payment.
                 </p>
             </div>
         </aside>

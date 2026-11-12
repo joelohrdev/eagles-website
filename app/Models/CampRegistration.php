@@ -36,9 +36,11 @@ class CampRegistration extends Model
     use HasFactory;
 
     /**
-     * Minutes an unpaid registration holds a spot before it expires.
+     * Minutes an unpaid registration holds a spot before it expires. The Stripe
+     * checkout session closes at the same moment, so it must stay above Stripe's
+     * 30-minute minimum session lifetime (measured from when Stripe creates it).
      */
-    public const int PENDING_HOLD_MINUTES = 30;
+    public const int PENDING_HOLD_MINUTES = 35;
 
     protected $attributes = [
         'status' => 'pending_payment',

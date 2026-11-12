@@ -21,9 +21,13 @@ class StripeGateway implements PaymentGateway
 
     public function createCheckoutSession(Order $order, string $successUrl, string $cancelUrl): CheckoutSession
     {
-        $order->loadMissing('items');
+        $order->loadMissing(['items', 'campRegistration']);
+
+        /** A camp spot is only held until expires_at, so the payment page must close then too. */
+        $expiresAt = $order->campRegistration?->expires_at;
 
         $session = $this->stripe->checkout->sessions->create([
+            ...($expiresAt ? ['expires_at' => $expiresAt->getTimestamp()] : []),
             'mode' => 'payment',
             'customer_email' => $order->email,
             'client_reference_id' => $order->number,
