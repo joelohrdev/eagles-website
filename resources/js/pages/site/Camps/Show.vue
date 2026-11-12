@@ -242,6 +242,7 @@ const registrationNote = computed(() => {
                 <CoachGrid
                     :coaches="camp.coaches"
                     :fallback-title="`${camp.name} coach`"
+                    layout="narrow"
                 />
             </div>
 

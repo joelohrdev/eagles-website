@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Mail } from '@lucide/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import FormattedText from '@/components/site/FormattedText.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -25,14 +25,33 @@ export type CoachCard = {
  * Headshot cards that open the coach's bio in a dialog. Used by the coaching
  * staff page and the coaches section on camp pages.
  */
-withDefaults(
+const props = withDefaults(
     defineProps<{
         coaches: CoachCard[];
         /** Shown under the name in the dialog when a coach has no role. */
         fallbackTitle?: string;
+        /**
+         * "wide" fills a full-width page (up to 4 per row); "narrow" suits a
+         * column like the camp page's main content (up to 3 per row).
+         */
+        layout?: 'wide' | 'narrow';
     }>(),
-    { fallbackTitle: 'Eagles coaching staff' },
+    { fallbackTitle: 'Eagles coaching staff', layout: 'wide' },
 );
+
+const gridClass = computed(() =>
+    props.layout === 'narrow'
+        ? 'grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3'
+        : 'grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4',
+);
+
+/**
+ * Split a role on slashes so it can wrap after each one: "Infield/Defense/
+ * Hitting Instructor" has no spaces to break at and would overflow the card.
+ */
+function titleParts(title: string): string[] {
+    return title.split(/(?<=\/)/);
+}
 
 const selectedCoach = ref<CoachCard | null>(null);
 const dialogOpen = ref(false);
@@ -54,9 +73,7 @@ function initials(name: string): string {
 
 <template>
     <div>
-        <ul
-            class="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4"
-        >
+        <ul :class="gridClass">
             <li v-for="coach in coaches" :key="coach.id">
                 <button
                     type="button"
@@ -88,9 +105,13 @@ function initials(name: string): string {
                         </span>
                         <span
                             v-if="coach.title"
-                            class="text-xs font-semibold tracking-wide text-sky uppercase sm:text-sm"
+                            class="text-[0.6875rem] leading-snug font-semibold tracking-wide text-balance break-words text-sky uppercase sm:text-xs"
                         >
-                            {{ coach.title }}
+                            <template
+                                v-for="(part, i) in titleParts(coach.title)"
+                                :key="i"
+                                >{{ part }}<wbr
+                            /></template>
                         </span>
                     </span>
                     <span
@@ -129,7 +150,13 @@ function initials(name: string): string {
                         <DialogDescription
                             class="text-sm font-semibold tracking-wide text-sky uppercase"
                         >
-                            {{ selectedCoach.title ?? fallbackTitle }}
+                            <template
+                                v-for="(part, i) in titleParts(
+                                    selectedCoach.title ?? fallbackTitle,
+                                )"
+                                :key="i"
+                                >{{ part }}<wbr
+                            /></template>
                         </DialogDescription>
                     </div>
                 </DialogHeader>
