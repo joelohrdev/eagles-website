@@ -12,6 +12,7 @@ import {
 import { computed } from 'vue';
 import CampScheduleList from '@/components/site/CampScheduleList.vue';
 import CoachGrid from '@/components/site/CoachGrid.vue';
+import ExpandableText from '@/components/site/ExpandableText.vue';
 import PreviewBanner from '@/components/site/PreviewBanner.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
 import ShareButtons from '@/components/site/ShareButtons.vue';
@@ -226,18 +227,10 @@ const registrationNote = computed(() => {
                 >
                     About this camp
                 </h2>
-                <p class="mt-3 whitespace-pre-line text-muted-foreground">
-                    {{ camp.description }}
-                </p>
-            </div>
-
-            <div v-if="!isSingleDay || camp.age_groups.length > 0">
-                <h2
-                    class="mb-4 font-display text-2xl font-bold tracking-wide text-navy uppercase dark:text-snow"
-                >
-                    Schedule
-                </h2>
-                <CampScheduleList :camp="camp" />
+                <ExpandableText
+                    :text="camp.description"
+                    class="mt-3 text-muted-foreground"
+                />
             </div>
 
             <div v-if="camp.coaches.length > 0">
@@ -250,6 +243,15 @@ const registrationNote = computed(() => {
                     :coaches="camp.coaches"
                     :fallback-title="`${camp.name} coach`"
                 />
+            </div>
+
+            <div v-if="!isSingleDay || camp.age_groups.length > 0">
+                <h2
+                    class="mb-4 font-display text-2xl font-bold tracking-wide text-navy uppercase dark:text-snow"
+                >
+                    Schedule
+                </h2>
+                <CampScheduleList :camp="camp" />
             </div>
 
             <YouTubeEmbed
