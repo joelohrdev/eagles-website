@@ -12,9 +12,12 @@ use App\Services\SiteSettings;
 use App\Services\StripeSettings;
 use App\Services\TryoutAvailability;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Stripe\StripeClient;
@@ -52,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureGates();
+        $this->configureRateLimiting();
     }
 
     /**
@@ -82,5 +86,16 @@ class AppServiceProvider extends ServiceProvider
     protected function configureGates(): void
     {
         Gate::define('admin', fn (User $user): bool => $user->role === UserRole::Admin);
+    }
+
+    /**
+     * Named limiters, so they keep their own counters (plain throttle:x,y
+     * shares one counter per visitor across every route that uses it).
+     */
+    protected function configureRateLimiting(): void
+    {
+        /** A 4-digit camp preview passcode has 10,000 options: allow 5 guesses a minute per visitor and camp. */
+        RateLimiter::for('camp-preview-unlock', fn (Request $request): Limit => Limit::perMinute(5)
+            ->by($request->ip().'|'.$request->route()?->originalParameter('camp')));
     }
 }

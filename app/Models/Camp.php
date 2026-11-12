@@ -37,9 +37,10 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $image_path
  * @property string|null $youtube_url
  * @property bool $is_published
+ * @property string|null $preview_passcode 4 digits that unlock the preview without logging in (stored encrypted).
  * @property int|null $active_registrations_count
  */
-#[Fillable(['name', 'slug', 'description', 'location', 'address', 'age_range', 'starts_at', 'ends_at', 'price', 'bundle_price', 'capacity', 'registration_opens_at', 'registration_closes_at', 'image_path', 'youtube_url', 'is_published'])]
+#[Fillable(['name', 'slug', 'description', 'location', 'address', 'age_range', 'starts_at', 'ends_at', 'price', 'bundle_price', 'capacity', 'registration_opens_at', 'registration_closes_at', 'image_path', 'youtube_url', 'is_published', 'preview_passcode'])]
 class Camp extends Model
 {
     /** @use HasFactory<CampFactory> */
@@ -49,6 +50,11 @@ class Camp extends Model
      * @var list<string>
      */
     protected $appends = ['image_url', 'image_thumbnail_url'];
+
+    /**
+     * @var list<string>
+     */
+    protected $hidden = ['preview_passcode'];
 
     protected $attributes = [
         'price' => 0,
@@ -82,6 +88,7 @@ class Camp extends Model
             'bundle_price' => 'integer',
             'capacity' => 'integer',
             'is_published' => 'boolean',
+            'preview_passcode' => 'encrypted',
         ];
     }
 

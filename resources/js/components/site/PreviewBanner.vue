@@ -31,6 +31,7 @@ defineProps<{
                 <template v-if="note"> {{ note }}</template>
             </p>
             <Link
+                v-if="preview.edit_url"
                 :href="preview.edit_url"
                 class="font-semibold underline underline-offset-2"
                 >Back to editing</Link

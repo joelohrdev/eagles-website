@@ -25,6 +25,29 @@ const props = withDefaults(
 );
 
 /** Whether the camp is live now; the save buttons decide what it becomes. */
+const previewPasscode = ref(props.camp?.preview_passcode ?? '');
+const copied = ref(false);
+
+function generatePasscode() {
+    previewPasscode.value = String(
+        crypto.getRandomValues(new Uint32Array(1))[0] % 10000,
+    ).padStart(4, '0');
+}
+
+async function copyPreviewLink() {
+    if (!props.camp) {
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(props.camp.preview_url);
+        copied.value = true;
+        setTimeout(() => (copied.value = false), 2000);
+    } catch {
+        copied.value = false;
+    }
+}
+
 /** Bumped after every successful save to reload the schedule and coaches with saved ids. */
 const scheduleVersion = ref(0);
 
@@ -65,7 +88,11 @@ const seoFallback = computed(() => ({
                 { value: 'coaches', prefix: 'coaches' },
                 {
                     value: 'registration',
-                    fields: ['registration_opens_at', 'registration_closes_at'],
+                    fields: [
+                        'registration_opens_at',
+                        'registration_closes_at',
+                        'preview_passcode',
+                    ],
                 },
                 { value: 'seo', prefix: 'seo' },
             ]"
@@ -216,6 +243,74 @@ const seoFallback = computed(() => ({
                         hint="Leave blank to stay open until the camp starts."
                     />
                 </div>
+
+                <section class="space-y-3 rounded-md border p-4">
+                    <div>
+                        <h3 class="text-sm font-medium">Preview access</h3>
+                        <p class="text-xs text-muted-foreground">
+                            Staff can always open the preview after logging in.
+                            Add a 4-digit passcode to let anyone with the
+                            preview link see it without an account — useful for
+                            coaches and parents checking a draft. Leave it blank
+                            to require a login. Changing it locks out anyone who
+                            used the old one.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap items-end gap-2">
+                        <div class="grid gap-1">
+                            <Label for="preview_passcode">Passcode</Label>
+                            <Input
+                                id="preview_passcode"
+                                v-model="previewPasscode"
+                                name="preview_passcode"
+                                type="text"
+                                inputmode="numeric"
+                                maxlength="4"
+                                autocomplete="off"
+                                placeholder="None"
+                                class="w-28 font-mono tracking-[0.3em]"
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="generatePasscode"
+                            >Generate</Button
+                        >
+                        <Button
+                            v-if="previewPasscode"
+                            type="button"
+                            variant="ghost"
+                            @click="previewPasscode = ''"
+                            >Clear</Button
+                        >
+                    </div>
+                    <InputError :message="errors.preview_passcode" />
+                    <div v-if="camp" class="grid gap-1">
+                        <Label for="preview_link">Preview link</Label>
+                        <div class="flex gap-2">
+                            <Input
+                                id="preview_link"
+                                :model-value="camp.preview_url"
+                                readonly
+                                class="font-mono text-xs"
+                                @focus="
+                                    ($event.target as HTMLInputElement).select()
+                                "
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                @click="copyPreviewLink"
+                                >{{ copied ? 'Copied' : 'Copy' }}</Button
+                            >
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Send this link with the passcode. Changes take
+                            effect when you save.
+                        </p>
+                    </div>
+                </section>
             </TabsContent>
 
             <TabsContent value="seo" class="pt-4">

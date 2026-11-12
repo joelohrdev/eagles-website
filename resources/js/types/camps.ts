@@ -135,6 +135,7 @@ export type AdminCamp = {
     registration_state: RegistrationState;
     public_url: string;
     preview_url: string;
+    preview_passcode: string | null;
 };
 
 export type AdminCampRegistration = {
@@ -164,7 +165,8 @@ export type CampSeo = SeoMetaForm | null;
 /** Links for the staff-only preview pages (they also work for drafts). */
 export type CampPreview = {
     is_draft: boolean;
-    edit_url: string;
+    /** Only for signed-in staff; passcode visitors can't edit. */
+    edit_url: string | null;
     camp_url: string;
     register_url: string;
 };

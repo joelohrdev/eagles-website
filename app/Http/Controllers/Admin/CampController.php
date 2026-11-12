@@ -2,15 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Actions\Camps\QuoteCampSelection;
 use App\Actions\Camps\SyncCampCoaches;
 use App\Actions\Camps\SyncCampSchedule;
 use App\Actions\Seo\SyncSeoMeta;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Site\CampController as SiteCampController;
 use App\Http\Requests\Admin\StoreCampRequest;
 use App\Http\Requests\Admin\UpdateCampRequest;
-use App\Http\Requests\Site\QuoteCampRegistrationRequest;
 use App\Models\Camp;
 use App\Models\CampAgeGroup;
 use App\Models\CampCoach;
@@ -18,10 +15,7 @@ use App\Models\CampDayTime;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
 use App\Services\ImageUploader;
-use App\Services\SeoResolver;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -85,80 +79,6 @@ class CampController extends Controller
         return to_route('admin.camps.edit', $camp);
     }
 
-    /**
-     * The public camp page as it will look once published, for drafts too.
-     * Staff-only (admin routes). Its register button leads to the preview of
-     * the registration form rather than the real one.
-     */
-    public function preview(Camp $camp, SeoResolver $seo): Response
-    {
-        return Inertia::render('site/Camps/Show', [
-            ...$this->previewProps($camp, $seo, 'Preview: '),
-            'registered' => false,
-        ]);
-    }
-
-    /**
-     * The registration form for a camp, drafts too, so staff can try the
-     * sessions, days, age groups and coupons and watch the total. It prices
-     * selections through previewQuote() and can't be submitted.
-     */
-    public function previewRegister(Camp $camp, SeoResolver $seo): Response
-    {
-        return Inertia::render('site/Camps/Register', [
-            ...$this->previewProps($camp, $seo, 'Preview registration: '),
-            'quoteUrl' => route('admin.camps.preview.quote', $camp),
-        ]);
-    }
-
-    /**
-     * Price a selection on the preview registration form. Same rules as the
-     * public quote, but works for drafts and never saves anything.
-     */
-    public function previewQuote(Request $request, Camp $camp, QuoteCampSelection $quoteCampSelection): JsonResponse
-    {
-        $validated = $request->validate(
-            QuoteCampRegistrationRequest::selectionRules(),
-            attributes: QuoteCampRegistrationRequest::selectionAttributes(),
-        );
-
-        return response()->json($quoteCampSelection->handle(
-            $camp,
-            array_map('intval', $validated['days']),
-            $validated['camp_age_group_id'] ?? null,
-            $validated['coupon_code'] ?? null,
-        )->toArray());
-    }
-
-    /**
-     * Props shared by the preview pages: the camp presented as if live (so the
-     * registration state matches what families will see; never saved), the
-     * preview banner's links, and noindex SEO.
-     *
-     * @return array<string, mixed>
-     */
-    private function previewProps(Camp $camp, SeoResolver $seo, string $titlePrefix): array
-    {
-        $camp->load('seoMeta');
-        $isDraft = ! $camp->is_published;
-        $camp->is_published = true;
-
-        return [
-            'camp' => SiteCampController::presentDetail($camp),
-            'preview' => [
-                'is_draft' => $isDraft,
-                'edit_url' => route('admin.camps.edit', $camp),
-                'camp_url' => route('admin.camps.preview', $camp),
-                'register_url' => route('admin.camps.preview.register', $camp),
-            ],
-            'seo' => $seo->forModel($camp, [
-                'title' => $titlePrefix.$camp->name,
-                'description' => SiteCampController::autoDescription($camp),
-                'robots' => 'noindex,nofollow',
-            ])->toArray(),
-        ];
-    }
-
     public function edit(Camp $camp): Response
     {
         $camp->load('seoMeta')->loadSchedule();
@@ -171,7 +91,8 @@ class CampController extends Controller
                 'coaches' => $camp->coaches()->get()->map(fn (CampCoach $coach): array => $coach->only(['id', 'name', 'title', 'bio', 'photo_url']))->all(),
                 'registration_state' => $camp->registrationState(),
                 'public_url' => route('camps.show', $camp),
-                'preview_url' => route('admin.camps.preview', $camp),
+                'preview_url' => route('camps.preview', $camp),
+                'preview_passcode' => $camp->preview_passcode,
             ],
             'seo' => $camp->seoMeta,
         ]);

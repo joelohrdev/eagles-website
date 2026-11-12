@@ -264,7 +264,7 @@ test('staff can preview a draft camp page, even with details missing', function 
     $camp = Camp::query()->sole();
 
     $this->get(route('camps.show', $camp))->assertNotFound();
-    $this->actingAs($this->staff)->get(route('admin.camps.preview', $camp))
+    $this->actingAs($this->staff)->get(route('camps.preview', $camp))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('site/Camps/Show')
@@ -281,7 +281,7 @@ test('staff can preview a draft camp page, even with details missing', function 
 test('guests cannot open a camp preview', function () {
     $camp = Camp::factory()->unpublished()->create();
 
-    $this->get(route('admin.camps.preview', $camp))->assertRedirect(route('login'));
+    $this->get(route('camps.preview', $camp))->assertRedirect(route('login'));
 });
 
 test('staff can try the registration form on a draft and get live totals', function () {
@@ -293,14 +293,14 @@ test('staff can try the registration form on a draft and get live totals', funct
     $this->get(route('camps.register', $camp))->assertNotFound();
     $this->postJson(route('camps.quote', $camp), ['days' => [1]])->assertNotFound();
 
-    $this->actingAs($this->staff)->get(route('admin.camps.preview.register', $camp))
+    $this->actingAs($this->staff)->get(route('camps.preview.register', $camp))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('site/Camps/Register')
             ->where('preview.is_draft', true)
-            ->where('quoteUrl', route('admin.camps.preview.quote', $camp)));
+            ->where('quoteUrl', route('camps.preview.quote', $camp)));
 
-    $this->actingAs($this->staff)->postJson(route('admin.camps.preview.quote', $camp), [
+    $this->actingAs($this->staff)->postJson(route('camps.preview.quote', $camp), [
         'days' => $camp->days()->pluck('camp_session_days.id')->all(),
         'camp_age_group_id' => $young->id,
         'coupon_code' => 'thanks30',
@@ -313,6 +313,6 @@ test('staff can try the registration form on a draft and get live totals', funct
 test('guests cannot use the preview registration form', function () {
     $camp = Camp::factory()->unpublished()->create();
 
-    $this->get(route('admin.camps.preview.register', $camp))->assertRedirect(route('login'));
-    $this->postJson(route('admin.camps.preview.quote', $camp), ['days' => [1]])->assertUnauthorized();
+    $this->get(route('camps.preview.register', $camp))->assertRedirect(route('login'));
+    $this->postJson(route('camps.preview.quote', $camp), ['days' => [1]])->assertForbidden();
 });

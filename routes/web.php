@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Site\CampController;
+use App\Http\Controllers\Site\CampPreviewController;
 use App\Http\Controllers\Site\CampRegistrationController;
 use App\Http\Controllers\Site\CartController;
 use App\Http\Controllers\Site\CheckoutController;
@@ -32,6 +33,17 @@ Route::get('/', HomeController::class)->name('home');
 Route::get('teams', [TeamController::class, 'index'])->middleware('page:teams')->name('teams.index');
 Route::get('facility', FacilityController::class)->middleware('page:facility')->name('facility');
 Route::get('coaches', [CoachController::class, 'index'])->middleware('page:coaches')->name('coaches.index');
+
+/**
+ * Camp previews (drafts too) for staff, or anyone with the camp's passcode.
+ * Outside page:camps so they work while the Camps page is switched off.
+ */
+Route::prefix('camps/{camp}/preview')->name('camps.preview')->group(function () {
+    Route::get('/', [CampPreviewController::class, 'show']);
+    Route::get('register', [CampPreviewController::class, 'register'])->name('.register');
+    Route::post('quote', [CampPreviewController::class, 'quote'])->middleware('throttle:60,1')->name('.quote');
+    Route::post('unlock', [CampPreviewController::class, 'unlock'])->middleware('throttle:camp-preview-unlock')->name('.unlock');
+});
 
 Route::middleware('page:camps')->group(function () {
     Route::get('camps', [CampController::class, 'index'])->name('camps.index');

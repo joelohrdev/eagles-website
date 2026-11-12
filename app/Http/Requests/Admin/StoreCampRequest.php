@@ -103,6 +103,7 @@ class StoreCampRequest extends FormRequest
             'registration_closes_at' => ['nullable', 'date', 'after:registration_opens_at'],
             'youtube_url' => ['nullable', 'url', 'max:255'],
             'is_published' => ['nullable', 'boolean'],
+            'preview_passcode' => ['nullable', 'digits:4'],
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'remove_image' => ['nullable', 'boolean'],
 
@@ -147,6 +148,7 @@ class StoreCampRequest extends FormRequest
         return [
             'registration_closes_at.after' => 'Registration must close after it opens.',
             'age_groups.*.name.distinct' => 'Each age group needs a different name.',
+            'preview_passcode.digits' => 'The passcode must be exactly 4 digits.',
             'sessions.required' => 'Add at least one session before publishing.',
             'sessions.*.price.required' => 'Enter a price before publishing.',
             'sessions.*.days.required' => 'Each session needs at least one day before publishing.',
@@ -247,6 +249,8 @@ class StoreCampRequest extends FormRequest
             'name', 'description', 'location', 'address', 'age_range',
             'capacity', 'registration_opens_at', 'registration_closes_at', 'youtube_url',
         ]);
+
+        $data['preview_passcode'] = $this->validated('preview_passcode') ?: null;
 
         $data['bundle_price'] = self::toCents($this->validated('bundle_price'));
         $data['is_published'] = $this->boolean('is_published');
