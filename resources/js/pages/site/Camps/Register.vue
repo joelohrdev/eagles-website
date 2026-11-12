@@ -1,17 +1,12 @@
 <script setup lang="ts">
 import { Form, Link, useHttp } from '@inertiajs/vue3';
-import {
-    ArrowLeft,
-    CalendarDays,
-    Lock,
-    MapPin,
-    TicketPercent,
-} from '@lucide/vue';
+import { ArrowLeft, Lock, TicketPercent } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import CampRegistrationController from '@/actions/App/Http/Controllers/Site/CampRegistrationController';
 import DateTimePicker from '@/components/DateTimePicker.vue';
 import InputError from '@/components/InputError.vue';
 import RequiredMark from '@/components/RequiredMark.vue';
+import CampRegistrationSummary from '@/components/site/CampRegistrationSummary.vue';
 import PhoneInput from '@/components/site/PhoneInput.vue';
 import PreviewBanner from '@/components/site/PreviewBanner.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
@@ -20,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDate, formatDateTime, money } from '@/lib/format';
+import { formatDateTime, money } from '@/lib/format';
 import { contact } from '@/routes';
 import type {
     CampDetail,
@@ -161,6 +156,12 @@ function removeCoupon() {
 }
 
 watch([selectedDays, ageGroupId], () => refreshQuote(), { immediate: true });
+
+const summaryPrompt = computed(() =>
+    hasGroups.value && ageGroupId.value === null
+        ? 'Choose an age group and sessions to see your total.'
+        : 'Choose sessions to see your total.',
+);
 
 const canSubmit = computed(() => quote.value !== null && !http.processing);
 
@@ -368,38 +369,56 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                             <li
                                 v-for="day in session.days"
                                 :key="day.id"
-                                class="flex items-center gap-3 px-4 py-2.5"
                                 :class="{ 'opacity-60': isDayFull(day) }"
                             >
-                                <Checkbox
-                                    v-if="allowsSingleDays(session)"
-                                    :model-value="selectedDays.includes(day.id)"
-                                    :disabled="isDayFull(day)"
-                                    :aria-label="`${day.title}`"
-                                    @update:model-value="
-                                        (checked) =>
-                                            toggleDay(day, checked === true)
+                                <!-- The whole row toggles the day when single days can be booked. -->
+                                <component
+                                    :is="
+                                        allowsSingleDays(session)
+                                            ? 'label'
+                                            : 'div'
                                     "
-                                />
-                                <span class="flex-1">
-                                    {{ day.title }}
+                                    class="flex items-start gap-3 px-4 py-3"
+                                    :class="{
+                                        'cursor-pointer':
+                                            allowsSingleDays(session) &&
+                                            !isDayFull(day),
+                                    }"
+                                >
+                                    <Checkbox
+                                        v-if="allowsSingleDays(session)"
+                                        class="mt-0.5"
+                                        :model-value="
+                                            selectedDays.includes(day.id)
+                                        "
+                                        :disabled="isDayFull(day)"
+                                        :aria-label="day.title"
+                                        @update:model-value="
+                                            (checked) =>
+                                                toggleDay(day, checked === true)
+                                        "
+                                    />
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block font-medium">{{
+                                            day.title
+                                        }}</span>
+                                        <span
+                                            v-if="timeFor(day)"
+                                            class="block text-muted-foreground"
+                                            >{{ timeFor(day) }}</span
+                                        >
+                                    </span>
                                     <span
-                                        v-if="timeFor(day)"
-                                        class="text-muted-foreground"
+                                        v-if="isDayFull(day)"
+                                        class="text-xs font-semibold whitespace-nowrap text-destructive uppercase"
+                                        >Full</span
                                     >
-                                        · {{ timeFor(day) }}</span
+                                    <span
+                                        v-else-if="allowsSingleDays(session)"
+                                        class="whitespace-nowrap text-muted-foreground"
+                                        >{{ money(session.day_price) }}</span
                                     >
-                                </span>
-                                <span
-                                    v-if="isDayFull(day)"
-                                    class="text-xs font-semibold text-destructive uppercase"
-                                    >Full</span
-                                >
-                                <span
-                                    v-else-if="allowsSingleDays(session)"
-                                    class="text-muted-foreground"
-                                    >{{ money(session.day_price) }}</span
-                                >
+                                </component>
                             </li>
                         </ul>
                     </div>
@@ -644,6 +663,13 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                     />
                 </div>
 
+                <CampRegistrationSummary
+                    class="lg:hidden"
+                    :camp="camp"
+                    :quote="quote"
+                    :prompt="summaryPrompt"
+                />
+
                 <div
                     class="flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-center"
                 >
@@ -673,100 +699,14 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
             </Form>
         </div>
 
-        <aside>
-            <div class="sticky top-24 rounded-lg border bg-card p-6 shadow-sm">
-                <p
-                    class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                >
-                    Summary
-                </p>
-                <p
-                    class="mt-2 font-display text-2xl font-bold tracking-wide text-navy uppercase dark:text-snow"
-                >
-                    {{ camp.name }}
-                </p>
-                <ul class="mt-3 space-y-1.5 text-sm text-muted-foreground">
-                    <li class="flex items-center gap-2">
-                        <CalendarDays class="size-4 shrink-0 text-sky" />
-                        {{ formatDate(camp.starts_at) }}
-                        <template
-                            v-if="
-                                camp.ends_at &&
-                                camp.ends_at.slice(0, 10) !==
-                                    camp.starts_at?.slice(0, 10)
-                            "
-                            >– {{ formatDate(camp.ends_at) }}</template
-                        >
-                    </li>
-                    <li
-                        v-if="camp.location || camp.address"
-                        class="flex items-start gap-2"
-                    >
-                        <MapPin class="mt-0.5 size-4 shrink-0 text-sky" />
-                        <span>
-                            {{ camp.location }}
-                            <span v-if="camp.address" class="block text-xs">{{
-                                camp.address
-                            }}</span>
-                        </span>
-                    </li>
-                </ul>
-                <dl v-if="quote" class="mt-4 space-y-2 border-t pt-4 text-sm">
-                    <div
-                        v-for="line in quote.lines"
-                        :key="line.session_id"
-                        class="flex justify-between gap-3"
-                    >
-                        <dt class="text-muted-foreground">
-                            {{ line.name }}
-                            <span class="block text-xs">{{
-                                line.whole_session
-                                    ? 'All days'
-                                    : `${line.day_ids.length} ${line.day_ids.length === 1 ? 'day' : 'days'}`
-                            }}</span>
-                        </dt>
-                        <dd>{{ money(line.price) }}</dd>
-                    </div>
-                    <div
-                        v-if="quote.discount > 0"
-                        class="flex justify-between gap-3 text-sky-dark"
-                    >
-                        <dt>{{ quote.discount_label }}</dt>
-                        <dd>−{{ money(quote.discount) }}</dd>
-                    </div>
-                </dl>
-                <p
-                    v-else
-                    class="mt-4 border-t pt-4 text-sm text-muted-foreground"
-                >
-                    {{
-                        hasGroups && ageGroupId === null
-                            ? 'Choose an age group and sessions to see your total.'
-                            : 'Choose sessions to see your total.'
-                    }}
-                </p>
-                <div
-                    class="mt-4 flex items-baseline justify-between border-t pt-4"
-                >
-                    <span class="text-sm text-muted-foreground">Total</span>
-                    <span
-                        class="font-display text-3xl font-bold text-navy dark:text-snow"
-                        >{{
-                            !quote
-                                ? '—'
-                                : quote.total === 0
-                                  ? 'Free'
-                                  : money(quote.total)
-                        }}</span
-                    >
-                </div>
-                <p
-                    v-if="quote && quote.total > 0"
-                    class="mt-3 text-xs text-muted-foreground"
-                >
-                    Your spot is held for 35 minutes while you complete payment.
-                </p>
-            </div>
+        <!-- On large screens the summary sits beside the form; on phones it's shown above the button instead. -->
+        <aside class="hidden lg:block">
+            <CampRegistrationSummary
+                class="sticky top-24"
+                :camp="camp"
+                :quote="quote"
+                :prompt="summaryPrompt"
+            />
         </aside>
     </section>
 </template>
