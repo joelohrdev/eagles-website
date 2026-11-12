@@ -197,6 +197,16 @@
     body {
         @apply bg-background text-foreground;
     }
+    /*
+     * Dialogs and sheets (reka-ui) lock scrolling by hiding the scrollbar and
+     * adding its width as inline right padding/margin on <body>. The gutter
+     * above already keeps that space, so the extra padding would shove the
+     * page sideways when a dialog opens. !important beats the inline style.
+     */
+    body {
+        padding-right: 0 !important;
+        margin-right: 0 !important;
+    }
 }
 
 @layer base {
