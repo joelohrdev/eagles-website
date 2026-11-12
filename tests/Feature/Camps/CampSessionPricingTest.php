@@ -121,7 +121,7 @@ test('unusable coupon codes are rejected with a reason', function (Closure $make
     quote($camp, ['days' => dayIdsOf([$pitching]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'CODE'])
         ->assertJsonValidationErrors(['coupon_code' => $message]);
 })->with([
-    'unknown' => [fn () => null, 'That coupon code isn’t valid.'],
+    'unknown' => [fn () => null, 'That coupon code doesn’t exist. Check the spelling and try again.'],
     'inactive' => [fn () => Coupon::factory()->inactive()->create(['code' => 'CODE']), 'That coupon code is not active.'],
     'expired' => [fn () => Coupon::factory()->expired()->create(['code' => 'CODE']), 'That coupon code has expired.'],
     'merch only' => [fn () => Coupon::factory()->scope(CouponScope::Merch)->create(['code' => 'CODE']), 'That coupon code can’t be used for camps.'],

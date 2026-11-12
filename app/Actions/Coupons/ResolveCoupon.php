@@ -28,7 +28,7 @@ class ResolveCoupon
             ->where('code', Coupon::normalizeCode($code))
             ->when($lock, fn ($query) => $query->lockForUpdate())
             ->first()
-            ?? throw ValidationException::withMessages(['coupon_code' => __('That coupon code isn’t valid.')]);
+            ?? throw ValidationException::withMessages(['coupon_code' => __('That coupon code doesn’t exist. Check the spelling and try again.')]);
 
         if ($problem = $coupon->problemFor($type, $camp)) {
             throw ValidationException::withMessages(['coupon_code' => $problem]);

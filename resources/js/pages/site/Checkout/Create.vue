@@ -46,13 +46,20 @@ async function applyCoupon() {
     http.coupon_code = code;
     http.fulfillment = fulfillment.value;
 
+    /**
+     * useHttp resolves with undefined on a 422 (the message lands in
+     * http.errors.coupon_code) and only throws for network or server failures.
+     */
+    let result: CheckoutQuote | undefined;
+
     try {
-        quote.value = await http.post(CheckoutController.quote.url());
-        appliedCode.value = quote.value.coupon_code ? code : '';
+        result = await http.post(CheckoutController.quote.url());
     } catch {
-        quote.value = null;
-        appliedCode.value = '';
+        result = undefined;
     }
+
+    quote.value = result ?? null;
+    appliedCode.value = result?.coupon_code ? code : '';
 }
 
 function removeCoupon() {

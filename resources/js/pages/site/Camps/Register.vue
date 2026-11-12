@@ -122,21 +122,35 @@ async function refreshQuote() {
     http.camp_age_group_id = ageGroupId.value;
     http.coupon_code = appliedCode.value;
 
+    /**
+     * useHttp resolves with undefined on a 422 (the messages land in
+     * http.errors) and only throws for network or server failures.
+     */
+    let result: CampQuote | undefined;
+
     try {
-        quote.value = await http.post(
+        result = await http.post(
             props.quoteUrl ??
                 CampRegistrationController.quote.url(props.camp.slug),
         );
     } catch {
-        quote.value = null;
+        result = undefined;
+    }
 
-        /** A bad code shouldn't block the price: drop it and price without it. */
-        if (http.errors.coupon_code && appliedCode.value !== '') {
-            const message = http.errors.coupon_code;
-            appliedCode.value = '';
-            await refreshQuote();
-            couponError.value = message;
-        }
+    if (result) {
+        quote.value = result;
+
+        return;
+    }
+
+    quote.value = null;
+
+    /** A bad code shouldn't block the price: drop it, price without it, and say why. */
+    if (http.errors.coupon_code && appliedCode.value !== '') {
+        const message = http.errors.coupon_code;
+        appliedCode.value = '';
+        await refreshQuote();
+        couponError.value = message;
     }
 }
 

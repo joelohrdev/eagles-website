@@ -84,3 +84,11 @@ test('a merch order a coupon covers in full is confirmed without Stripe', functi
 
     Mail::assertQueued(OrderReceipt::class);
 });
+
+test('a misspelled code says it does not exist', function () {
+    shirtsInCart();
+    Coupon::factory()->percent(20)->create(['code' => 'THANKS30']);
+
+    $this->postJson(route('checkout.quote'), ['coupon_code' => 'THANK30'])
+        ->assertJsonValidationErrors(['coupon_code' => 'That coupon code doesn’t exist. Check the spelling and try again.']);
+});
