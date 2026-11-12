@@ -3,11 +3,11 @@
 
 **{{ $registration->playerName() }}** is registered for **{{ $tryout->title }}**.
 
-**When:** {{ $tryout->event_at->format('l, F j, Y \a\t g:i A') }}
+**When:** {{ $tryout->event_at->format('l, F j, Y \a\t g:i A') }}<br>
 @if ($tryout->location)
-**Where:** {{ $tryout->location }}
+**Where:** {{ $tryout->location }}<br>
 @endif
-**Division:** {{ $tryout->division }}
+**Division:** {{ $tryout->division }}<br>
 
 Please arrive 15–20 minutes early to check in. Bring your glove, bat, helmet, cleats, and water.
 

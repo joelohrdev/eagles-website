@@ -1,13 +1,13 @@
 <x-mail::message>
 # New paid {{ $order->type->label() }}
 
-**Order:** {{ $order->number }}
-**Customer:** {{ $order->name }} ({{ $order->email }}@if ($order->phone), {{ $order->phone }}@endif)
-**Total:** ${{ number_format($order->total / 100, 2) }}
+**Order:** {{ $order->number }}<br>
+**Customer:** {{ $order->name }} ({{ $order->email }}@if ($order->phone), {{ $order->phone }}@endif)<br>
+**Total:** ${{ number_format($order->total / 100, 2) }}<br>
 
 @if ($order->campRegistration)
-**Camp:** {{ $order->campRegistration->camp->name }}
-**Player:** {{ $order->campRegistration->playerName() }}
+**Camp:** {{ $order->campRegistration->camp->name }}<br>
+**Player:** {{ $order->campRegistration->playerName() }}<br>
 @endif
 
 <x-mail::table>

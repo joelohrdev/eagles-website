@@ -5,12 +5,12 @@ Hi {{ $registration->parent_name }},
 
 **{{ $registration->playerName() }}** is registered for **{{ $camp->name }}**.
 
-**When:** {{ $camp->starts_at->format('l, F j, Y \a\t g:i A') }}@if ($camp->ends_at) – {{ $camp->ends_at->isSameDay($camp->starts_at) ? $camp->ends_at->format('g:i A') : $camp->ends_at->format('l, F j, Y \a\t g:i A') }}@endif
+**When:** {{ $camp->starts_at->format('l, F j, Y \a\t g:i A') }}@if ($camp->ends_at) – {{ $camp->ends_at->isSameDay($camp->starts_at) ? $camp->ends_at->format('g:i A') : $camp->ends_at->format('l, F j, Y \a\t g:i A') }}@endif<br>
 @if ($camp->location)
-**Where:** {{ $camp->location }}
+**Where:** {{ $camp->location }}<br>
 @endif
 @if ($camp->age_range)
-**Ages:** {{ $camp->age_range }}
+**Ages:** {{ $camp->age_range }}<br>
 @endif
 
 <x-mail::button :url="route('camps.show', $camp)">
