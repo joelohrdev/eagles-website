@@ -347,3 +347,41 @@ test('a single-day price must be more than $0', function () {
     $this->actingAs($this->staff)->post(route('admin.camps.store'), $form)
         ->assertSessionHasErrors('sessions.0.day_price');
 });
+
+test('age groups cannot be added once players have registered without one', function () {
+    $form = thanksgivingCampForm(['age_groups' => []]);
+    foreach ($form['sessions'] as $s => $session) {
+        foreach ($session['days'] as $d => $day) {
+            $form['sessions'][$s]['days'][$d]['times'] = [['age_group_key' => null, 'starts_at' => '09:00', 'ends_at' => '10:30']];
+        }
+    }
+    $this->actingAs($this->staff)->post(route('admin.camps.store'), $form)->assertSessionHasNoErrors();
+    $camp = Camp::query()->sole();
+    CampRegistration::factory()->for($camp)->forDays([CampSessionDay::query()->first()])->create(['camp_age_group_id' => null]);
+    $schedule = $this->actingAs($this->staff)->get(route('admin.camps.edit', $camp))->viewData('page')['props']['camp']['schedule'];
+
+    $this->actingAs($this->staff)->put(route('admin.camps.update', $camp), thanksgivingCampForm([
+        ...$schedule,
+        'is_published' => 0,
+        'age_groups' => [['key' => 'young', 'name' => '8–12U']],
+    ]))->assertSessionHasErrors(['age_groups' => 'Age groups can’t be added once players have registered without one.']);
+
+    expect($camp->ageGroups()->count())->toBe(0);
+});
+
+test('the multi-session price must be less than the sessions added up', function () {
+    $this->actingAs($this->staff)->post(route('admin.camps.store'), thanksgivingCampForm(['bundle_price' => '250']))
+        ->assertSessionHasErrors(['bundle_price' => 'The multi-session price must be less than all sessions booked separately ($250.00).']);
+});
+
+test('moving a booked day to a new date warns staff to tell the families', function () {
+    $this->actingAs($this->staff)->post(route('admin.camps.store'), thanksgivingCampForm());
+    $camp = Camp::query()->sole();
+    CampRegistration::factory()->for($camp)->forDays([CampSessionDay::query()->whereDate('date', '2026-11-21')->sole()])->create();
+    $schedule = $this->actingAs($this->staff)->get(route('admin.camps.edit', $camp))->viewData('page')['props']['camp']['schedule'];
+    $schedule['sessions'][0]['days'][0]['date'] = '2026-11-22';
+
+    $this->actingAs($this->staff)->put(route('admin.camps.update', $camp), thanksgivingCampForm($schedule))
+        ->assertSessionHasNoErrors()
+        ->assertInertiaFlash('toast.type', 'info');
+});

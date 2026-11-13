@@ -196,8 +196,29 @@ class StoreCampRequest extends FormRequest
                 }
 
                 $this->checkTimes($validator);
+                $this->checkBundlePrice($validator);
             },
         ];
+    }
+
+    /**
+     * The multi-session price is advertised as a saving, so it has to be lower
+     * than booking every session separately.
+     */
+    private function checkBundlePrice(Validator $validator): void
+    {
+        $bundle = self::toCents($this->input('bundle_price'));
+        $prices = $this->collect('sessions')->map(fn (array $session): ?int => self::toCents($session['price'] ?? null));
+
+        if ($bundle === null || $prices->count() < 2 || $prices->contains(null)) {
+            return;
+        }
+
+        if ($bundle >= $prices->sum()) {
+            $validator->errors()->add('bundle_price', __('The multi-session price must be less than all sessions booked separately ($:total).', [
+                'total' => number_format($prices->sum() / 100, 2),
+            ]));
+        }
     }
 
     /**

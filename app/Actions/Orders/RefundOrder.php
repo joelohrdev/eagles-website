@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\Mail;
 
 /**
  * Mark a paid or fulfilled order refunded after Stripe reports a full refund,
- * releasing any camp spot it held, and email the customer. Idempotent:
- * anything not paid is left alone and gets no second email.
+ * releasing any camp spot it held, and email the customer. Also covers a paid
+ * order staff had already marked Cancelled. Idempotent: an order that was never
+ * paid, or is already refunded, is left alone and gets no second email.
  */
 class RefundOrder
 {
@@ -22,7 +23,9 @@ class RefundOrder
 
     public function handle(Order $order): Order
     {
-        if (! $order->isPaid()) {
+        $cancelledAfterPayment = $order->status === OrderStatus::Cancelled && $order->paid_at !== null;
+
+        if (! $order->isPaid() && ! $cancelledAfterPayment) {
             return $order;
         }
 

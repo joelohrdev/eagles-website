@@ -73,6 +73,7 @@ class RegisterForCamp
             }
 
             $quote = $this->quoteCampSelection->handle($locked, $dayIds, $ageGroupId, $couponCode, lockCoupon: true);
+            $this->ensureNotAlreadyBooked($locked, $attributes, $quote->dayIds());
 
             if ($quote->total() > 0) {
                 if (! $this->gateway->isAvailable()) {
@@ -167,6 +168,34 @@ class RegisterForCamp
         );
 
         return ['registration' => $registration, 'checkout' => $checkout];
+    }
+
+    /**
+     * Stop the same player taking a second spot on a day they already hold, e.g.
+     * after going back from the payment page and submitting the form again.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  list<int>  $dayIds
+     *
+     * @throws ValidationException
+     */
+    private function ensureNotAlreadyBooked(Camp $camp, array $attributes, array $dayIds): void
+    {
+        $existing = $camp->registrations()
+            ->countsAgainstCapacity()
+            ->whereDate('player_birthdate', (string) $attributes['player_birthdate'])
+            ->whereRaw('lower(player_first_name) = ?', [Str::lower(trim((string) $attributes['player_first_name']))])
+            ->whereRaw('lower(player_last_name) = ?', [Str::lower(trim((string) $attributes['player_last_name']))])
+            ->whereHas('days', fn ($query) => $query->whereIn('camp_session_days.id', $dayIds))
+            ->first();
+
+        if ($existing === null) {
+            return;
+        }
+
+        throw ValidationException::withMessages(['registration' => $existing->status === RegistrationStatus::PendingPayment
+            ? __(':player already has a spot on hold for these days. Finish paying for it, or wait up to :minutes minutes for the hold to end.', ['player' => $existing->playerName(), 'minutes' => CampRegistration::PENDING_HOLD_MINUTES])
+            : __(':player is already registered for these days.', ['player' => $existing->playerName()])]);
     }
 
     /**

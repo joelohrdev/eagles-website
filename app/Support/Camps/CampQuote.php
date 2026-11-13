@@ -23,6 +23,16 @@ final readonly class CampQuote
         public int $couponDiscount,
     ) {}
 
+    /**
+     * Every day picked, across all lines.
+     *
+     * @return list<int>
+     */
+    public function dayIds(): array
+    {
+        return array_values(array_merge(...array_map(fn (CampQuoteLine $line): array => $line->days->pluck('id')->all(), $this->lines)));
+    }
+
     public function couponApplies(): bool
     {
         return $this->coupon !== null && $this->couponDiscount > 0;

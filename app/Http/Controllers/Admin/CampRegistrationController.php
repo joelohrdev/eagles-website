@@ -12,6 +12,7 @@ use App\Models\CampRegistration;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
 use App\Services\ActivityLogger;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -74,10 +75,10 @@ class CampRegistrationController extends Controller
                 return;
             }
 
-            fputcsv($handle, ['Player', 'Birthdate', 'Age group', 'Days', 'Parent/Guardian', 'Email', 'Phone', 'Emergency contact', 'Emergency phone', 'Medical notes', 'Status', 'Order number', 'Discount', 'Discount amount', 'Paid', 'Registered at']);
+            Csv::writeRow($handle, ['Player', 'Birthdate', 'Age group', 'Days', 'Parent/Guardian', 'Email', 'Phone', 'Emergency contact', 'Emergency phone', 'Medical notes', 'Status', 'Order number', 'Discount', 'Discount amount', 'Paid', 'Registered at']);
 
             $this->query($camp, $filters)->lazy()->each(function (CampRegistration $registration) use ($handle): void {
-                fputcsv($handle, [
+                Csv::writeRow($handle, [
                     $registration->playerName(),
                     $registration->player_birthdate->toDateString(),
                     $registration->ageGroup?->name,
@@ -92,7 +93,8 @@ class CampRegistrationController extends Controller
                     $registration->order?->number,
                     $registration->order?->discount > 0 ? $registration->order->coupon_code : null,
                     $registration->order?->discount > 0 ? number_format($registration->order->discount / 100, 2, '.', '') : null,
-                    $registration->order ? number_format($registration->order->total / 100, 2, '.', '') : null,
+                    /** Only money actually kept: holds that expired and refunded orders paid nothing. */
+                    $registration->order && $registration->status === RegistrationStatus::Paid ? number_format($registration->order->total / 100, 2, '.', '') : null,
                     $registration->registered_at->format('Y-m-d H:i'),
                 ]);
             });
@@ -142,10 +144,10 @@ class CampRegistrationController extends Controller
                 return;
             }
 
-            fputcsv($handle, ['Date', 'Day', 'Session', 'Age group', 'Time', 'Player', 'Birthdate', 'Parent/Guardian', 'Phone', 'Email', 'Emergency contact', 'Emergency phone', 'Medical notes', 'Status', 'Order number']);
+            Csv::writeRow($handle, ['Date', 'Day', 'Session', 'Age group', 'Time', 'Player', 'Birthdate', 'Parent/Guardian', 'Phone', 'Email', 'Emergency contact', 'Emergency phone', 'Medical notes', 'Status', 'Order number']);
 
             foreach ($rows as ['registration' => $registration, 'day' => $day, 'time' => $time]) {
-                fputcsv($handle, [
+                Csv::writeRow($handle, [
                     $day->date?->toDateString() ?? 'TBD',
                     $day->date?->format('l') ?? '',
                     $day->session->name.($day->label ? " ({$day->label})" : ''),

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tryout;
 use App\Models\TryoutRegistration;
 use App\Services\ActivityLogger;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,13 +55,13 @@ class TryoutRegistrationController extends Controller
                 return;
             }
 
-            fputcsv($handle, ['Player', 'Birthdate', 'Parent/Guardian', 'Email', 'Phone', 'Current team', 'Position', 'Notes', 'Registered at']);
+            Csv::writeRow($handle, ['Player', 'Birthdate', 'Parent/Guardian', 'Email', 'Phone', 'Current team', 'Position', 'Notes', 'Registered at']);
 
             $tryout->registrations()
                 ->orderBy('registered_at')
                 ->lazy()
                 ->each(function (TryoutRegistration $registration) use ($handle): void {
-                    fputcsv($handle, [
+                    Csv::writeRow($handle, [
                         $registration->playerName(),
                         $registration->player_birthdate->toDateString(),
                         $registration->parent_name,

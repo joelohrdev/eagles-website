@@ -304,6 +304,8 @@ const statusOptions = props.statuses.filter(
                             Issue refunds from the Stripe dashboard. A full
                             refund updates this order automatically; after a
                             partial refund, set the status here yourself.
+                            Changing the status here never moves money in
+                            Stripe.
                         </p>
                     </CardContent>
                 </Card>

@@ -94,8 +94,8 @@ test('staff actions are logged under their name', function () {
 
 test('only admins can read the activity log, and it filters to one registration’s history', function () {
     ['camp' => $camp, 'young' => $young, 'pitching' => $pitching] = thanksgivingCamp();
-    foreach (['first@example.com', 'second@example.com'] as $email) {
-        $this->post(route('camps.register.store', $camp), validCampRegistration($camp, ['days' => dayIdsOf([$pitching]), 'camp_age_group_id' => $young->id, 'email' => $email]));
+    foreach (['first@example.com' => 'Ava', 'second@example.com' => 'Ben'] as $email => $player) {
+        $this->post(route('camps.register.store', $camp), validCampRegistration($camp, ['days' => dayIdsOf([$pitching]), 'camp_age_group_id' => $young->id, 'email' => $email, 'player_first_name' => $player]));
     }
     $first = CampRegistration::query()->where('email', 'first@example.com')->sole();
     webhookEvent(['type' => 'checkout.session.completed', 'session_id' => $first->order->stripe_checkout_session_id, 'payment_status' => 'paid']);

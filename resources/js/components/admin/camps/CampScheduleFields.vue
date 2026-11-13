@@ -519,8 +519,8 @@ function error(path: string): string | undefined {
                 placeholder="225.00"
             />
             <p class="text-xs text-muted-foreground">
-                Used when a family books every day of every session. Coupons
-                aren’t added on top — they get whichever price is lower.
+                Used when a family books every day of every session. Must be
+                less than the sessions added up. A coupon comes off this price.
             </p>
             <InputError :message="error('bundle_price')" />
         </section>

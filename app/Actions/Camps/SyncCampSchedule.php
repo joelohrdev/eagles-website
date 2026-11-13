@@ -2,6 +2,7 @@
 
 namespace App\Actions\Camps;
 
+use App\Enums\RegistrationStatus;
 use App\Models\Camp;
 use App\Models\CampAgeGroup;
 use App\Models\CampDayTime;
@@ -45,6 +46,17 @@ class SyncCampSchedule
     {
         $existing = $camp->ageGroups()->get()->keyBy('id');
         $ids = [];
+
+        /**
+         * Players who signed up before there were age groups belong to none, so
+         * no group's capacity would count them and the camp could overbook.
+         */
+        if ($existing->isEmpty() && $groups !== [] && $camp->registrations()
+            ->whereNull('camp_age_group_id')
+            ->whereIn('status', [RegistrationStatus::Paid, RegistrationStatus::PendingPayment])
+            ->exists()) {
+            throw ValidationException::withMessages(['age_groups' => __('Age groups can’t be added once players have registered without one.')]);
+        }
 
         foreach ($groups as $data) {
             /** @var CampAgeGroup $group */

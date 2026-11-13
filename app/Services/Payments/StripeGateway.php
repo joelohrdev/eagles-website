@@ -37,6 +37,8 @@ class StripeGateway implements PaymentGateway
             ...($expiresAt ? ['expires_at' => $expiresAt->getTimestamp()] : []),
             ...($order->discount > 0 ? ['discounts' => [['coupon' => $this->oneTimeCoupon($order)]]] : []),
             'mode' => 'payment',
+            /** Cards (incl. Apple Pay / Google Pay) confirm instantly; bank debits settle days later, after the hold has ended. */
+            'payment_method_types' => ['card'],
             'customer_email' => $order->email,
             'client_reference_id' => $order->number,
             'success_url' => $successUrl,

@@ -69,22 +69,22 @@ test('an order that was already paid at Stripe is not released when the customer
 test('one email can only hold two unpaid spots on a camp at once', function () {
     ['camp' => $camp, 'form' => $form] = pitchingSignUp(olderCapacity: 2);
 
-    $this->post(route('camps.register.store', $camp), $form)->assertSessionHasNoErrors();
-    $this->post(route('camps.register.store', $camp), [...$form, 'email' => 'ALEX@example.com'])->assertSessionHasNoErrors();
-    $this->post(route('camps.register.store', $camp), $form)->assertSessionHasErrors('email');
+    $this->post(route('camps.register.store', $camp), [...$form, 'player_first_name' => 'Ava'])->assertSessionHasNoErrors();
+    $this->post(route('camps.register.store', $camp), [...$form, 'player_first_name' => 'Ben', 'email' => 'ALEX@example.com'])->assertSessionHasNoErrors();
+    $this->post(route('camps.register.store', $camp), [...$form, 'player_first_name' => 'Cal'])->assertSessionHasErrors('email');
 
     expect(CampRegistration::count())->toBe(2);
 
     CampRegistration::query()->first()->update(['status' => RegistrationStatus::Paid, 'expires_at' => null]);
-    $this->post(route('camps.register.store', $camp), $form)->assertSessionHasNoErrors();
+    $this->post(route('camps.register.store', $camp), [...$form, 'player_first_name' => 'Cal'])->assertSessionHasNoErrors();
 });
 
 test('sign-ups a coupon covers in full are not counted as unpaid holds', function () {
     Coupon::factory()->percent(100)->create(['code' => 'COACH']);
     ['camp' => $camp, 'form' => $form] = pitchingSignUp(['coupon_code' => 'COACH']);
 
-    foreach (range(1, 3) as $i) {
-        $this->post(route('camps.register.store', $camp), $form)->assertSessionHasNoErrors();
+    foreach (['Ava', 'Ben', 'Cal'] as $player) {
+        $this->post(route('camps.register.store', $camp), [...$form, 'player_first_name' => $player])->assertSessionHasNoErrors();
     }
 
     expect(CampRegistration::count())->toBe(3);
@@ -176,4 +176,34 @@ test('the expiry job leaves a hold alone when its Stripe page was already paid',
 
     expect($order->refresh()->status)->toBe(OrderStatus::Pending)
         ->and($order->campRegistration->status)->toBe(RegistrationStatus::PendingPayment);
+});
+
+test('the same player cannot take a second spot on a day they already hold', function () {
+    ['camp' => $camp, 'form' => $form] = pitchingSignUp();
+    $this->post(route('camps.register.store', $camp), $form)->assertSessionHasNoErrors();
+
+    $this->post(route('camps.register.store', $camp), [...$form, 'email' => 'other@example.com', 'player_first_name' => 'JAMIE'])
+        ->assertSessionHasErrors(['registration' => 'Jamie Rivera already has a spot on hold for these days. Finish paying for it, or wait up to 35 minutes for the hold to end.']);
+
+    expect(CampRegistration::count())->toBe(1);
+});
+
+test('a player can sign up for a different session of the same camp later', function () {
+    ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp, ['days' => dayIdsOf([$pitching]), 'camp_age_group_id' => $young->id]))->assertSessionHasNoErrors();
+
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp, ['days' => dayIdsOf([$fielding]), 'camp_age_group_id' => $young->id]))
+        ->assertSessionHasNoErrors();
+});
+
+test('a camp hold whose time ran out stops counting as a coupon use', function () {
+    $coupon = Coupon::factory()->fixedPerItem(2500)->create(['code' => 'ONCE', 'max_redemptions' => 1]);
+    ['camp' => $camp, 'form' => $form] = pitchingSignUp(['coupon_code' => 'ONCE']);
+    $this->post(route('camps.register.store', $camp), $form);
+
+    expect($coupon->redemptionCount())->toBe(1);
+
+    $this->travel(CampRegistration::PENDING_HOLD_MINUTES + 1)->minutes();
+
+    expect($coupon->redemptionCount())->toBe(0);
 });

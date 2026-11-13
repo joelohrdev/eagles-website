@@ -4,6 +4,7 @@ use App\Actions\Orders\MarkOrderPaid;
 use App\Contracts\PaymentGateway;
 use App\Enums\OrderStatus;
 use App\Mail\OrderReceipt;
+use App\Mail\OrderRefunded;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use Illuminate\Support\Facades\Mail;
@@ -226,4 +227,19 @@ test('a Stripe error while opening the payment page cancels the order and keeps 
 
     expect(Order::query()->sole()->status)->toBe(OrderStatus::Cancelled)
         ->and(session('cart'))->toBe([$variant->id => 1]);
+});
+
+test('a Stripe refund of an order staff had already cancelled still marks it refunded and emails the customer', function () {
+    Mail::fake();
+    $order = Order::factory()->paid()->create(['stripe_payment_intent_id' => 'pi_fake_1']);
+    $order->update(['status' => OrderStatus::Cancelled]);
+
+    $this->postJson(route('stripe.webhook'), [
+        'type' => 'charge.refunded',
+        'payment_intent' => 'pi_fake_1',
+        'refunded' => true,
+    ], ['Stripe-Signature' => 'fake'])->assertOk();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Refunded);
+    Mail::assertQueued(OrderRefunded::class);
 });

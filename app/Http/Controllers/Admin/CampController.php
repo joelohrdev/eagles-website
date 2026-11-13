@@ -43,7 +43,11 @@ class CampController extends Controller
             ])
             ->orderByDesc('starts_at')
             ->paginate(20)
-            ->withQueryString()
+            ->withQueryString();
+
+        Camp::preloadTakenSlots($camps->getCollection());
+
+        $camps = $camps
             ->through(fn (Camp $camp) => [
                 ...$camp->only(['id', 'name', 'slug', 'location', 'starts_at', 'ends_at', 'price', 'capacity', 'is_published', 'image_thumbnail_url', 'paid_registrations_count', 'active_registrations_count']),
                 'registration_state' => $camp->is_published ? $camp->registrationState() : 'draft',
@@ -163,6 +167,7 @@ class CampController extends Controller
 
         $wasPublished = $camp->is_published;
         $changed = [];
+        $bookedDates = $this->bookedDayDates($camp);
 
         /** Old image files are only deleted once the save has gone through, so a rejected save never leaves a broken image. */
         try {
@@ -185,6 +190,13 @@ class CampController extends Controller
             $this->images->delete($oldImagePath);
         }
 
+        $movedDays = CampSessionDay::query()->whereKey(array_keys($bookedDates))->get()
+            ->filter(fn (CampSessionDay $day): bool => $day->date?->toDateString() !== $bookedDates[$day->id]);
+
+        if ($movedDays->isNotEmpty()) {
+            $changed[] = 'dates of booked days';
+        }
+
         $this->syncCampCoaches->handle($camp, $request->coaches());
 
         $this->syncSeoMeta->forModel($camp, $request->validated('seo'), $request->file('seo_share_image'));
@@ -195,7 +207,12 @@ class CampController extends Controller
             default => "Camp {$camp->name} updated",
         }, $camp, ['changed_fields' => $changed]);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Camp updated.')]);
+        Inertia::flash('toast', $movedDays->isEmpty()
+            ? ['type' => 'success', 'message' => __('Camp updated.')]
+            : ['type' => 'info', 'message' => trans_choice(
+                'Camp updated. A day with registered players moved to a new date — families haven’t been told, so let them know.|Camp updated. :count days with registered players moved to new dates — families haven’t been told, so let them know.',
+                $movedDays->count(),
+            )]);
 
         return to_route('admin.camps.edit', $camp);
     }
@@ -237,5 +254,20 @@ class CampController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Camp deleted.')]);
 
         return to_route('admin.camps.index');
+    }
+
+    /**
+     * The dates of this camp's days that have players booked, keyed by day id.
+     *
+     * @return array<int, string|null>
+     */
+    private function bookedDayDates(Camp $camp): array
+    {
+        return CampSessionDay::query()
+            ->whereHas('session', fn ($query) => $query->where('camp_id', $camp->id))
+            ->whereHas('registrations', fn ($query) => $query->countsAgainstCapacity())
+            ->get()
+            ->mapWithKeys(fn (CampSessionDay $day): array => [$day->id => $day->date?->toDateString()])
+            ->all();
     }
 }

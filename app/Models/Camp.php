@@ -245,14 +245,40 @@ class Camp extends Model
      */
     private function countTakenSlots(): array
     {
-        return DB::table('camp_registration_days')
+        self::preloadTakenSlots([$this]);
+
+        return $this->takenSlots ?? [];
+    }
+
+    /**
+     * Count the taken slots for several camps in one query, so a list of camps
+     * can show spots remaining without a query per camp.
+     *
+     * @param  iterable<Camp>  $camps
+     */
+    public static function preloadTakenSlots(iterable $camps): void
+    {
+        $byId = collect($camps)->keyBy('id');
+
+        if ($byId->isEmpty()) {
+            return;
+        }
+
+        $rows = DB::table('camp_registration_days')
             ->join('camp_registrations', 'camp_registrations.id', '=', 'camp_registration_days.camp_registration_id')
-            ->whereIn('camp_registrations.id', $this->registrations()->countsAgainstCapacity()->select('id'))
-            ->groupBy('camp_registration_days.camp_session_day_id', 'camp_registrations.camp_age_group_id')
-            ->select('camp_registration_days.camp_session_day_id as day_id', 'camp_registrations.camp_age_group_id as age_group_id', DB::raw('count(*) as taken'))
-            ->get()
-            ->mapWithKeys(fn (object $row): array => [$row->day_id.':'.($row->age_group_id ?? '') => (int) $row->taken])
-            ->all();
+            ->whereIn('camp_registrations.id', CampRegistration::query()->whereIn('camp_id', $byId->keys())->countsAgainstCapacity()->select('id'))
+            ->groupBy('camp_registrations.camp_id', 'camp_registration_days.camp_session_day_id', 'camp_registrations.camp_age_group_id')
+            ->select('camp_registrations.camp_id', 'camp_registration_days.camp_session_day_id as day_id', 'camp_registrations.camp_age_group_id as age_group_id', DB::raw('count(*) as taken'))
+            ->get();
+
+        foreach ($byId as $camp) {
+            $camp->takenSlots = [];
+        }
+
+        foreach ($rows as $row) {
+            $camp = $byId->get($row->camp_id);
+            $camp->takenSlots[$row->day_id.':'.($row->age_group_id ?? '')] = (int) $row->taken;
+        }
     }
 
     /**

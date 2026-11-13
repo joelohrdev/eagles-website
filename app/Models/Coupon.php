@@ -8,6 +8,7 @@ use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use Database\Factories\CouponFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -103,22 +104,39 @@ class Coupon extends Model
     }
 
     /**
+     * Orders using up this code. A camp hold whose time ran out stops counting
+     * straight away, without waiting for the expiry job to cancel its order.
+     *
      * @return HasMany<Order, $this>
      */
     public function redemptions(): HasMany
     {
-        return $this->orders()->whereIn('status', self::REDEEMING_STATUSES);
+        return $this->orders()
+            ->whereIn('status', self::REDEEMING_STATUSES)
+            ->whereNot(fn (Builder $query) => $query
+                ->where('status', OrderStatus::Pending)
+                ->whereHas('campRegistration', fn (Builder $registration) => $registration->where('expires_at', '<=', now())));
     }
 
-    public function redemptionCount(): int
+    /**
+     * @param  bool  $lock  Read with a locking read, so a transaction sees uses committed while it waited for the coupon lock.
+     */
+    public function redemptionCount(bool $lock = false): int
     {
+        if ($lock) {
+            return $this->redemptions()->lockForUpdate()->count();
+        }
+
         return $this->redemptions_count ?? $this->redemptions()->count();
     }
 
     /**
      * Why this coupon can't be used for an order of this type (and camp), or null when it can.
      */
-    public function problemFor(OrderType $type, ?Camp $camp = null): ?string
+    /**
+     * @param  bool  $locked  The coupon row is locked in this transaction; count uses with a locking read.
+     */
+    public function problemFor(OrderType $type, ?Camp $camp = null, bool $locked = false): ?string
     {
         if (! $this->is_active) {
             return __('That coupon code is not active.');
@@ -142,7 +160,7 @@ class Coupon extends Model
             return __('That coupon code can’t be used for this camp.');
         }
 
-        if ($this->max_redemptions !== null && $this->redemptionCount() >= $this->max_redemptions) {
+        if ($this->max_redemptions !== null && $this->redemptionCount($locked) >= $this->max_redemptions) {
             return __('That coupon code has been used up.');
         }
 

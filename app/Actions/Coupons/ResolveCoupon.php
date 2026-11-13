@@ -30,7 +30,7 @@ class ResolveCoupon
             ->first()
             ?? throw ValidationException::withMessages(['coupon_code' => __('That coupon code doesn’t exist. Check the spelling and try again.')]);
 
-        if ($problem = $coupon->problemFor($type, $camp)) {
+        if ($problem = $coupon->problemFor($type, $camp, locked: $lock)) {
             throw ValidationException::withMessages(['coupon_code' => $problem]);
         }
 

@@ -265,6 +265,7 @@ test('the camp roster and CSV show which registrations used a coupon', function 
         'camp_age_group_id' => $young->id,
         'coupon_code' => 'thanks30',
     ]));
+    app(MarkOrderPaid::class)->handle(Order::query()->sole());
     $staff = User::factory()->staff()->create();
 
     $this->actingAs($staff)->get(route('admin.camps.registrations.index', $camp))
@@ -333,4 +334,22 @@ test('a coupon never takes the total below zero after the multi-session price', 
     quote($camp, ['days' => dayIdsOf([$pitching, $fielding, $extra]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'ALL'])
         ->assertOk()
         ->assertJson(['total' => 0]);
+});
+
+test('the CSV only shows an amount paid for registrations that are paid', function () {
+    ['camp' => $camp] = thanksgivingCamp();
+    $order = Order::factory()->camp()->create(['total' => 12500, 'status' => OrderStatus::Cancelled]);
+    CampRegistration::factory()->for($camp)->cancelled()->create(['order_id' => $order->id, 'player_first_name' => 'Expired']);
+
+    expect($this->actingAs(User::factory()->staff()->create())->get(route('admin.camps.registrations.export', $camp, ['status' => 'cancelled']))->streamedContent())
+        ->toContain('Expired')
+        ->not->toContain('125.00');
+});
+
+test('CSV cells that start like a spreadsheet formula are written as plain text', function () {
+    ['camp' => $camp] = thanksgivingCamp();
+    CampRegistration::factory()->for($camp)->create(['medical_notes' => '=HYPERLINK("http://example.com","x")']);
+
+    expect($this->actingAs(User::factory()->staff()->create())->get(route('admin.camps.registrations.export', $camp))->streamedContent())
+        ->toContain('"\'=HYPERLINK(""http://example.com"",""x"")"');
 });
