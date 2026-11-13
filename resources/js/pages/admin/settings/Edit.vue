@@ -1038,6 +1038,22 @@ const currentLabel =
                 />
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="grid content-start gap-2">
+                        <Label for="seo_google_analytics_id"
+                            >Google Analytics measurement ID</Label
+                        >
+                        <Input
+                            id="seo_google_analytics_id"
+                            name="seo_google_analytics_id"
+                            placeholder="G-XXXXXXXXXX"
+                            :default-value="str('seo_google_analytics_id')"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            Leave blank to turn analytics off. Signed-in staff
+                            are never tracked.
+                        </p>
+                        <InputError :message="errors.seo_google_analytics_id" />
+                    </div>
+                    <div class="grid content-start gap-2">
                         <Label for="seo_google_site_verification"
                             >Google Search Console verification</Label
                         >

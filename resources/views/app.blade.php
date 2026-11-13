@@ -4,6 +4,24 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
+        @inject('siteSettings', 'App\Services\SiteSettings')
+        @if ($googleSiteVerification = $siteSettings->get('seo_google_site_verification'))
+            <meta name="google-site-verification" content="{{ $googleSiteVerification }}">
+        @endif
+        @if ($bingSiteVerification = $siteSettings->get('seo_bing_site_verification'))
+            <meta name="msvalidate.01" content="{{ $bingSiteVerification }}">
+        @endif
+        @php($googleAnalyticsId = $siteSettings->get('seo_google_analytics_id'))
+        @if ($googleAnalyticsId && ! auth()->check())
+            <script async src="https://www.googletagmanager.com/gtag/js?id={{ $googleAnalyticsId }}"></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', @js($googleAnalyticsId));
+            </script>
+        @endif
+
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
             (function() {

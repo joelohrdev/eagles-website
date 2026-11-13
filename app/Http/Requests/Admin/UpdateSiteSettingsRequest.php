@@ -94,6 +94,7 @@ class UpdateSiteSettingsRequest extends FormRequest
                 'seo_default_description' => ['nullable', 'string', 'max:320'],
                 'seo_default_share_image' => [...$image, 'dimensions:min_width=600,min_height=315'],
                 'remove_seo_default_share_image' => ['nullable', 'boolean'],
+                'seo_google_analytics_id' => ['nullable', 'string', 'max:32', 'regex:/^G-[A-Z0-9]+$/i'],
                 'seo_google_site_verification' => ['nullable', 'string', 'max:255'],
                 'seo_bing_site_verification' => ['nullable', 'string', 'max:255'],
                 'seo_facebook_app_id' => ['nullable', 'string', 'max:64'],
@@ -167,7 +168,27 @@ class UpdateSiteSettingsRequest extends FormRequest
             return $this->boolean($key);
         }
 
+        if (in_array($key, ['seo_google_site_verification', 'seo_bing_site_verification'], true)) {
+            return $this->verificationCode($value);
+        }
+
         return filled($value) ? $value : null;
+    }
+
+    /**
+     * Google and Bing hand out a whole `<meta ... content="code">` tag; keep only the code when one is pasted.
+     */
+    private function verificationCode(?string $value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        if (preg_match('/content\s*=\s*["\']([^"\']+)["\']/i', $value, $matches)) {
+            return trim($matches[1]);
+        }
+
+        return trim($value);
     }
 
     /**

@@ -140,6 +140,7 @@ class SiteSettings
         'seo_title_template' => '%s | Eagles Baseball Travel',
         'seo_default_description' => 'Eagles Baseball Travel — youth travel baseball teams, tryouts, camps, and training in Illinois.',
         'seo_default_share_image' => null,
+        'seo_google_analytics_id' => null,
         'seo_google_site_verification' => null,
         'seo_bing_site_verification' => null,
         'seo_facebook_app_id' => null,
@@ -159,7 +160,7 @@ class SiteSettings
         'contact' => ['contact_intro'],
         'pages' => ['page_teams_enabled', 'page_facility_enabled', 'page_coaches_enabled', 'page_camps_enabled', 'page_merch_enabled', 'page_contact_enabled'],
         'navigation' => ['nav_cta_label', 'nav_cta_url', 'nav_show_cta', 'nav_show_cart', 'footer_tagline', 'footer_links_heading', 'footer_contact_heading', 'footer_show_contact', 'footer_show_socials', 'footer_show_address', 'footer_copyright'],
-        'seo' => ['seo_site_name', 'seo_title_template', 'seo_default_description', 'seo_default_share_image', 'seo_google_site_verification', 'seo_bing_site_verification', 'seo_facebook_app_id', 'seo_twitter_handle', 'seo_faq'],
+        'seo' => ['seo_site_name', 'seo_title_template', 'seo_default_description', 'seo_default_share_image', 'seo_google_analytics_id', 'seo_google_site_verification', 'seo_bing_site_verification', 'seo_facebook_app_id', 'seo_twitter_handle', 'seo_faq'],
     ];
 
     /**
