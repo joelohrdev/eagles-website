@@ -46,3 +46,16 @@ export type CouponPreview = {
         note: string | null;
     }[];
 };
+
+export type CouponUse = {
+    id: number;
+    number: string;
+    name: string;
+    email: string;
+    purchase: string;
+    discount: number;
+    total: number;
+    status: string;
+    status_label: string;
+    created_at: string | null;
+};

@@ -3,6 +3,7 @@
 use App\Enums\CouponScope;
 use App\Enums\CouponType;
 use App\Models\Camp;
+use App\Models\CampRegistration;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\User;
@@ -162,4 +163,23 @@ test('only admins can preview coupon prices', function () {
     $this->actingAs(User::factory()->staff()->create())
         ->postJson(route('admin.coupons.preview'), ['type' => 'percent', 'value' => '20'])
         ->assertForbidden();
+});
+
+test('a coupon’s page lists the customers who used it, newest first', function () {
+    $coupon = Coupon::factory()->create(['code' => 'THANKS30']);
+    $camp = Camp::factory()->create(['name' => 'Thanksgiving Camp']);
+    $campOrder = Order::factory()->camp()->for($coupon)->paid()->create(['name' => 'Joe Lohr', 'email' => 'joe@example.com', 'created_at' => now()->subDay()]);
+    CampRegistration::factory()->for($camp)->create(['order_id' => $campOrder->id, 'player_first_name' => 'Jacob', 'player_last_name' => 'Lohr']);
+    Order::factory()->for($coupon)->create(['name' => 'Pat Parent', 'status' => 'cancelled']);
+    Order::factory()->paid()->create(['name' => 'Someone Else']);
+
+    $this->actingAs($this->admin)->get(route('admin.coupons.edit', $coupon))
+        ->assertInertia(fn ($page) => $page
+            ->has('uses.data', 2)
+            ->where('uses.data.0.name', 'Pat Parent')
+            ->where('uses.data.0.status', 'cancelled')
+            ->where('uses.data.1.name', 'Joe Lohr')
+            ->where('uses.data.1.email', 'joe@example.com')
+            ->where('uses.data.1.number', $campOrder->number)
+            ->where('uses.data.1.purchase', 'Thanksgiving Camp · Jacob Lohr'));
 });

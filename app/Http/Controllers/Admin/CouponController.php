@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\UpdateCouponRequest;
 use App\Models\Camp;
 use App\Models\CampSession;
 use App\Models\Coupon;
+use App\Models\Order;
 use App\Services\ActivityLogger;
 use App\Support\Camps\CampPricing;
 use App\Support\Camps\CampQuoteLine;
@@ -84,6 +85,27 @@ class CouponController extends Controller
                 'camp_ids' => $coupon->camps()->pluck('camps.id')->all(),
                 'redemptions_count' => $coupon->redemptionCount(),
             ],
+            /** Every order placed with the code, newest first; cancelled and refunded ones are listed but don't count as uses. */
+            'uses' => $coupon->orders()
+                ->with(['campRegistration:id,order_id,camp_id,player_first_name,player_last_name', 'campRegistration.camp:id,name'])
+                ->withCount('items')
+                ->latest()
+                ->paginate(20, pageName: 'uses_page')
+                ->withQueryString()
+                ->through(fn (Order $order): array => [
+                    'id' => $order->id,
+                    'number' => $order->number,
+                    'name' => $order->name,
+                    'email' => $order->email,
+                    'purchase' => $order->campRegistration
+                        ? trim("{$order->campRegistration->camp?->name} · {$order->campRegistration->playerName()}", ' ·')
+                        : trans_choice(':count merch item|:count merch items', $order->items_count),
+                    'discount' => $order->discount,
+                    'total' => $order->total,
+                    'status' => $order->status->value,
+                    'status_label' => $order->status->label(),
+                    'created_at' => $order->created_at?->toIso8601String(),
+                ]),
         ]);
     }
 
