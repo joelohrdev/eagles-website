@@ -8,6 +8,7 @@ use App\Models\Camp;
 use App\Models\CampAgeGroup;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
+use App\Models\Coupon;
 use App\Support\Camps\CampPricing;
 use App\Support\Camps\CampQuote;
 use App\Support\Camps\CampQuoteLine;
@@ -41,6 +42,23 @@ class QuoteCampSelection
         return CampPricing::quote($lines, $camp->sessions->count(), $camp->bundle_price, $coupon);
     }
 
+    /**
+     * Price days a player already holds, for a partial refund: the same pricing
+     * as sign-up, but days that have passed are fine and capacity isn't checked
+     * (they're already booked). The coupon is the one the order used, as is.
+     *
+     * @param  list<int>  $dayIds
+     *
+     * @throws ValidationException when the days can't be booked on their own (e.g. part of a whole-session-only session).
+     */
+    public function reprice(Camp $camp, array $dayIds, ?Coupon $coupon): CampQuote
+    {
+        $camp->loadSchedule();
+        $lines = $this->priceLines($camp, array_values(array_unique($dayIds)), allowPastDays: true);
+
+        return CampPricing::quote($lines, $camp->sessions->count(), $camp->bundle_price, $coupon);
+    }
+
     private function resolveAgeGroup(Camp $camp, ?int $ageGroupId): ?CampAgeGroup
     {
         if ($camp->ageGroups->isEmpty()) {
@@ -55,7 +73,7 @@ class QuoteCampSelection
      * @param  list<int>  $dayIds
      * @return list<CampQuoteLine>
      */
-    private function priceLines(Camp $camp, array $dayIds): array
+    private function priceLines(Camp $camp, array $dayIds, bool $allowPastDays = false): array
     {
         if ($dayIds === []) {
             throw ValidationException::withMessages(['days' => __('Choose at least one session or day.')]);
@@ -76,7 +94,7 @@ class QuoteCampSelection
                 continue;
             }
 
-            $past = $picked->first(fn (CampSessionDay $day): bool => $day->date !== null && $day->date->lt(today()));
+            $past = $allowPastDays ? null : $picked->first(fn (CampSessionDay $day): bool => $day->date !== null && $day->date->lt(today()));
 
             if ($past !== null) {
                 throw ValidationException::withMessages(['days' => __(':day has already happened.', ['day' => $past->title()])]);

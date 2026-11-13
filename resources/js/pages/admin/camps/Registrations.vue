@@ -9,6 +9,7 @@ import {
     TicketPercent,
 } from '@lucide/vue';
 import { ref, watch } from 'vue';
+import DropDaysDialog from '@/components/admin/camps/DropDaysDialog.vue';
 import ConfirmDelete from '@/components/admin/ConfirmDelete.vue';
 import EmptyState from '@/components/admin/EmptyState.vue';
 import Pagination from '@/components/admin/Pagination.vue';
@@ -73,6 +74,7 @@ const props = defineProps<{
     sessions: { id: number; name: string }[];
     /** The activity log, for admins only; each row links to its history. */
     historyUrl: string | null;
+    canRefund: boolean;
     ageGroups: { id: number; name: string }[];
 }>();
 
@@ -409,6 +411,23 @@ const rosterUrl = () => roster(props.camp.slug, { query: filterQuery() }).url;
                                         ><History class="size-4"
                                     /></Link>
                                 </Button>
+                                <DropDaysDialog
+                                    v-if="
+                                        canRefund &&
+                                        registration.status === 'paid' &&
+                                        registration.day_ids.length > 1
+                                    "
+                                    :camp-slug="camp.slug"
+                                    :registration-id="registration.id"
+                                    :player-name="registration.player_name"
+                                    :days="
+                                        days.filter((day) =>
+                                            registration.day_ids.includes(
+                                                day.id,
+                                            ),
+                                        )
+                                    "
+                                />
                                 <ConfirmDelete
                                     :href="
                                         destroy([camp.slug, registration.id])

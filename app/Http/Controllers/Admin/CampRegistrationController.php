@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Camps\DropCampDays;
 use App\Actions\Orders\CancelPendingOrder;
 use App\Contracts\PaymentGateway;
 use App\Enums\RegistrationStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\DropCampDaysRequest;
 use App\Models\Camp;
 use App\Models\CampAgeGroup;
 use App\Models\CampRegistration;
@@ -14,6 +16,7 @@ use App\Models\CampSessionDay;
 use App\Services\ActivityLogger;
 use App\Support\Csv;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -42,6 +45,8 @@ class CampRegistrationController extends Controller
                 /** The coupon code (or "Multi-session price") and amount taken off, when the order had a discount. */
                 'discount_label' => $registration->order?->discount > 0 ? $registration->order->coupon_code : null,
                 'discount' => $registration->order->discount ?? 0,
+                'refunded_amount' => $registration->order->refunded_amount ?? 0,
+                'day_ids' => $registration->days->pluck('id')->all(),
             ]);
 
         return Inertia::render('admin/camps/Registrations', [
@@ -53,6 +58,7 @@ class CampRegistrationController extends Controller
             'registrations' => $registrations,
             'filters' => $filters,
             'historyUrl' => $request->user()?->can('admin') ? route('admin.activity.index') : null,
+            'canRefund' => $request->user()?->can('admin') ?? false,
             'sessions' => $camp->sessions->map(fn (CampSession $session): array => ['id' => $session->id, 'name' => $session->name])->all(),
             'days' => $camp->sessions->flatMap(fn (CampSession $session) => $session->days->map(fn (CampSessionDay $day): array => [
                 'id' => $day->id,
@@ -94,7 +100,7 @@ class CampRegistrationController extends Controller
                     $registration->order?->discount > 0 ? $registration->order->coupon_code : null,
                     $registration->order?->discount > 0 ? number_format($registration->order->discount / 100, 2, '.', '') : null,
                     /** Only money actually kept: holds that expired and refunded orders paid nothing. */
-                    $registration->order && $registration->status === RegistrationStatus::Paid ? number_format($registration->order->total / 100, 2, '.', '') : null,
+                    $registration->order && $registration->status === RegistrationStatus::Paid ? number_format($registration->order->amountKept() / 100, 2, '.', '') : null,
                     $registration->registered_at->format('Y-m-d H:i'),
                 ]);
             });
@@ -207,6 +213,28 @@ class CampRegistrationController extends Controller
         $registration->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Registration deleted.')]);
+
+        return back();
+    }
+
+    /**
+     * What taking these days off would cost and give back, for the dialog before staff confirm.
+     */
+    public function previewDropDays(DropCampDaysRequest $request, Camp $camp, CampRegistration $registration, DropCampDays $dropCampDays): JsonResponse
+    {
+        return response()->json($dropCampDays->preview($registration, $request->dayIds()));
+    }
+
+    /**
+     * Take days off a paid registration and refund the difference through Stripe.
+     */
+    public function dropDays(DropCampDaysRequest $request, Camp $camp, CampRegistration $registration, DropCampDays $dropCampDays): RedirectResponse
+    {
+        $dropCampDays->handle($registration, $request->dayIds(), $request->refundCents());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $request->refundCents() > 0
+            ? __(':player’s days were updated and $:amount was refunded. The family has been emailed.', ['player' => $registration->playerName(), 'amount' => number_format($request->refundCents() / 100, 2)])
+            : __(':player’s days were updated. The family has been emailed.', ['player' => $registration->playerName()])]);
 
         return back();
     }

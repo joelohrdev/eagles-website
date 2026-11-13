@@ -33,6 +33,12 @@ class FakeGateway implements PaymentGateway
     /** Make createCheckoutSession throw, like a Stripe API error. */
     public bool $failCheckout = false;
 
+    /** @var list<array{order_id: int, amount: int}> */
+    public array $refunds = [];
+
+    /** Make refund throw, like a Stripe API error. */
+    public bool $failRefund = false;
+
     public function isAvailable(): bool
     {
         return true;
@@ -65,6 +71,15 @@ class FakeGateway implements PaymentGateway
         return true;
     }
 
+    public function refund(Order $order, int $amount): void
+    {
+        if ($this->failRefund) {
+            throw new RuntimeException('Fake refund failure.');
+        }
+
+        $this->refunds[] = ['order_id' => $order->id, 'amount' => $amount];
+    }
+
     public function parseWebhook(string $payload, ?string $signature): WebhookEvent
     {
         if ($signature !== 'fake') {
@@ -79,6 +94,7 @@ class FakeGateway implements PaymentGateway
             paymentIntentId: $data['payment_intent'] ?? null,
             paymentStatus: $data['payment_status'] ?? null,
             fullyRefunded: (bool) ($data['refunded'] ?? false),
+            amountRefunded: isset($data['amount_refunded']) ? (int) $data['amount_refunded'] : null,
         );
     }
 }

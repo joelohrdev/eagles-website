@@ -57,6 +57,7 @@ export type Order = {
     discount: number;
     coupon_code: string | null;
     total: number;
+    refunded_amount: number;
     status: 'pending' | 'paid' | 'fulfilled' | 'cancelled' | 'refunded';
     stripe_checkout_session_id: string | null;
     stripe_payment_intent_id: string | null;

@@ -29,6 +29,13 @@ interface PaymentGateway
     public function closeCheckoutSession(Order $order): bool;
 
     /**
+     * Give back part (or all) of an order's payment, in cents.
+     *
+     * @throws \RuntimeException when the refund can't be made; nothing was refunded.
+     */
+    public function refund(Order $order, int $amount): void;
+
+    /**
      * Verify a webhook payload's signature and normalize it into a WebhookEvent.
      *
      * @throws InvalidWebhookSignature

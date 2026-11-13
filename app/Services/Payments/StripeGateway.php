@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Support\Payments\CheckoutSession;
 use App\Support\Payments\WebhookEvent;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Stripe\Charge;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiErrorException;
@@ -105,6 +106,23 @@ class StripeGateway implements PaymentGateway
         }
     }
 
+    public function refund(Order $order, int $amount): void
+    {
+        if (blank($order->stripe_payment_intent_id)) {
+            throw new RuntimeException("Order {$order->number} has no Stripe payment to refund.");
+        }
+
+        try {
+            $this->stripe->refunds->create([
+                'payment_intent' => $order->stripe_payment_intent_id,
+                'amount' => $amount,
+                'metadata' => ['order_number' => $order->number],
+            ]);
+        } catch (ApiErrorException $e) {
+            throw new RuntimeException($e->getMessage(), previous: $e);
+        }
+    }
+
     public function parseWebhook(string $payload, ?string $signature): WebhookEvent
     {
         try {
@@ -125,6 +143,7 @@ class StripeGateway implements PaymentGateway
             paymentIntentId: is_string($object->payment_intent ?? null) ? $object->payment_intent : null,
             paymentStatus: $object->payment_status ?? null,
             fullyRefunded: (bool) ($object->refunded ?? false),
+            amountRefunded: is_int($object->amount_refunded ?? null) ? $object->amount_refunded : null,
         );
     }
 }

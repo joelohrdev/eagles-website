@@ -35,6 +35,7 @@ use Illuminate\Support\Str;
  * @property string|null $coupon_code Code (or discount name) as applied, kept if the coupon is deleted.
  * @property int $discount
  * @property int $total
+ * @property int $refunded_amount Cents given back so far (partial refunds); the full refund also sets status Refunded.
  * @property OrderStatus $status
  * @property string|null $stripe_checkout_session_id
  * @property string|null $stripe_payment_intent_id
@@ -55,6 +56,7 @@ class Order extends Model
         'subtotal' => 0,
         'discount' => 0,
         'total' => 0,
+        'refunded_amount' => 0,
     ];
 
     protected static function booted(): void
@@ -73,6 +75,7 @@ class Order extends Model
             'subtotal' => 'integer',
             'discount' => 'integer',
             'total' => 'integer',
+            'refunded_amount' => 'integer',
             'paid_at' => 'datetime',
             'fulfilled_at' => 'datetime',
         ];
@@ -114,6 +117,14 @@ class Order extends Model
     public function isPaid(): bool
     {
         return in_array($this->status, [OrderStatus::Paid, OrderStatus::Fulfilled], true);
+    }
+
+    /**
+     * What the customer has paid and not had back.
+     */
+    public function amountKept(): int
+    {
+        return max(0, $this->total - $this->refunded_amount);
     }
 
     public function isPending(): bool

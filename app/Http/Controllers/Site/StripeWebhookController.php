@@ -65,6 +65,12 @@ class StripeWebhookController extends Controller
             $this->cancelPendingOrder->handle($order, 'Stripe payment page expired');
         } elseif ($event->isFullyRefunded()) {
             $this->refundOrder->handle($order);
+        } elseif ($event->isPartiallyRefunded() && $order->isPaid() && $event->amountRefunded > $order->refunded_amount) {
+            /** Stripe reports the running total refunded, so a refund made in the dashboard is recorded too. */
+            $order->forceFill(['refunded_amount' => min($event->amountRefunded, $order->total)])->save();
+            $this->activity->log('order.partially_refunded', 'Order '.$order->number.' partly refunded in Stripe ($'.number_format($order->refunded_amount / 100, 2).' back so far)', $order, [
+                'refunded_amount' => $order->refunded_amount,
+            ]);
         }
 
         return response('OK', 200);

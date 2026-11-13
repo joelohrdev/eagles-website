@@ -155,6 +155,29 @@ const statusOptions = props.statuses.filter(
                                     <dt>Total</dt>
                                     <dd>{{ money(order.total) }}</dd>
                                 </div>
+                                <template v-if="order.refunded_amount > 0">
+                                    <div
+                                        class="flex justify-between text-muted-foreground"
+                                    >
+                                        <dt>Refunded</dt>
+                                        <dd>
+                                            −{{ money(order.refunded_amount) }}
+                                        </dd>
+                                    </div>
+                                    <div
+                                        class="flex justify-between font-semibold"
+                                    >
+                                        <dt>Kept</dt>
+                                        <dd>
+                                            {{
+                                                money(
+                                                    order.total -
+                                                        order.refunded_amount,
+                                                )
+                                            }}
+                                        </dd>
+                                    </div>
+                                </template>
                             </dl>
                         </div>
                     </CardContent>
@@ -294,6 +317,15 @@ const statusOptions = props.statuses.filter(
                             Paid {{ formatDateTime(order.paid_at) }}
                         </p>
                         <p v-else class="text-muted-foreground">Not paid</p>
+                        <p
+                            v-if="
+                                order.refunded_amount > 0 &&
+                                order.status !== 'refunded'
+                            "
+                        >
+                            Partially refunded
+                            {{ money(order.refunded_amount) }}
+                        </p>
                         <p
                             v-if="order.stripe_payment_intent_id"
                             class="font-mono text-xs break-all text-muted-foreground"

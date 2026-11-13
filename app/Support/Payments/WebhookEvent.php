@@ -19,6 +19,7 @@ final readonly class WebhookEvent
         public ?string $paymentIntentId = null,
         public ?string $paymentStatus = null,
         public bool $fullyRefunded = false,
+        public ?int $amountRefunded = null,
     ) {}
 
     public function isCheckoutCompleted(): bool
@@ -34,6 +35,14 @@ final readonly class WebhookEvent
     public function isFullyRefunded(): bool
     {
         return $this->type === self::CHARGE_REFUNDED && $this->fullyRefunded;
+    }
+
+    /**
+     * A refund that gives back only part of the payment (made here or in the Stripe dashboard).
+     */
+    public function isPartiallyRefunded(): bool
+    {
+        return $this->type === self::CHARGE_REFUNDED && ! $this->fullyRefunded && $this->amountRefunded !== null;
     }
 
     /**

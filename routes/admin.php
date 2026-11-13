@@ -77,6 +77,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     // Admin-only
     Route::middleware('admin')->group(function () {
+        Route::post('camps/{camp}/registrations/{registration}/drop-days/preview', [CampRegistrationController::class, 'previewDropDays'])
+            ->scopeBindings()
+            ->name('camps.registrations.drop-days.preview');
+        Route::post('camps/{camp}/registrations/{registration}/drop-days', [CampRegistrationController::class, 'dropDays'])
+            ->scopeBindings()
+            ->name('camps.registrations.drop-days');
+
         Route::get('settings/{group}', [SiteSettingController::class, 'edit'])
             ->whereIn('group', ['organization', 'home', 'facility', 'contact', 'pages', 'seo'])
             ->name('settings.edit');

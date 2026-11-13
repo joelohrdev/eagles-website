@@ -35,6 +35,11 @@ class UnavailableGateway implements PaymentGateway
         return false;
     }
 
+    public function refund(Order $order, int $amount): void
+    {
+        throw new RuntimeException('Online payments are not configured.');
+    }
+
     public function parseWebhook(string $payload, ?string $signature): WebhookEvent
     {
         throw new InvalidWebhookSignature('Online payments are not configured.');
