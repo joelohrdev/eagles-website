@@ -28,6 +28,17 @@ function fullGroups(
         .filter((slot) => slot.remaining === 0 && slot.age_group_id !== null)
         .map((slot) => groupName(slot.age_group_id) ?? '');
 }
+
+/**
+ * Suffix saying what the session price covers: "for both days", "for all 3 days".
+ */
+function fullSessionLabel(dayCount: number): string {
+    if (dayCount < 2) {
+        return '';
+    }
+
+    return dayCount === 2 ? ' for both days' : ` for all ${dayCount} days`;
+}
 </script>
 
 <template>
@@ -51,7 +62,7 @@ function fullGroups(
                             ? 'Price TBD'
                             : session.price === 0
                               ? 'Free'
-                              : `${money(session.price)}${session.days.length > 1 ? ' for all days' : ''}`
+                              : `${money(session.price)}${fullSessionLabel(session.days.length)}`
                     }}<span
                         v-if="
                             session.day_price !== null &&
@@ -59,7 +70,7 @@ function fullGroups(
                         "
                         class="text-muted-foreground"
                     >
-                        · {{ money(session.day_price) }} per day</span
+                        · or {{ money(session.day_price) }} per day</span
                     >
                 </p>
             </div>
