@@ -42,6 +42,7 @@ class StoreCouponRequest extends FormRequest
             'expires_at' => ['nullable', 'date', 'after:starts_at'],
             'max_redemptions' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'is_active' => ['nullable', 'boolean'],
+            'combinable_with_multi_session' => ['nullable', 'boolean'],
         ];
     }
 
@@ -85,6 +86,9 @@ class StoreCouponRequest extends FormRequest
                 ? (int) $this->validated('value')
                 : (int) round(((float) $this->validated('value')) * 100),
             'is_active' => $this->boolean('is_active'),
+            /** Only camps have a multi-session price, so a merch-only code never combines. */
+            'combinable_with_multi_session' => $this->validated('applies_to') !== CouponScope::Merch->value
+                && $this->boolean('combinable_with_multi_session'),
         ];
     }
 

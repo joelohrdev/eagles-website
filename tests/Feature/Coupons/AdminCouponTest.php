@@ -94,3 +94,72 @@ test('deleting a coupon keeps the code on orders that used it', function () {
     expect($order->refresh()->coupon_id)->toBeNull()
         ->and($order->coupon_code)->toBe('GONE');
 });
+
+test('a camp coupon can be set to combine with the multi-session price, but a merch coupon never does', function (string $appliesTo, bool $combinable) {
+    $this->actingAs($this->admin)->post(route('admin.coupons.store'), [
+        'code' => 'STACK',
+        'type' => 'percent',
+        'value' => '20',
+        'applies_to' => $appliesTo,
+        'combinable_with_multi_session' => 1,
+        'is_active' => 1,
+    ])->assertSessionHasNoErrors();
+
+    expect(Coupon::query()->sole()->combinable_with_multi_session)->toBe($combinable);
+})->with([
+    'camps' => ['camps', true],
+    'merch' => ['merch', false],
+]);
+
+test('new coupons compete with the multi-session price unless the box is ticked', function () {
+    $this->actingAs($this->admin)->post(route('admin.coupons.store'), [
+        'code' => 'PLAIN',
+        'type' => 'percent',
+        'value' => '20',
+        'applies_to' => 'camps',
+        'is_active' => 1,
+    ])->assertSessionHasNoErrors();
+
+    expect(Coupon::query()->sole()->combinable_with_multi_session)->toBeFalse();
+});
+
+test('the price preview uses a sample camp when no camp is chosen', function (bool $combinable, int $bothTotal, ?string $note) {
+    $this->actingAs($this->admin)->postJson(route('admin.coupons.preview'), [
+        'type' => 'percent',
+        'value' => '20',
+        'combinable_with_multi_session' => $combinable,
+    ])
+        ->assertOk()
+        ->assertJsonPath('camp', null)
+        ->assertJsonPath('scenarios.0.label', '1 session')
+        ->assertJsonPath('scenarios.0.total', 10000)
+        ->assertJsonPath('scenarios.1.label', 'Both sessions')
+        ->assertJsonPath('scenarios.1.total', $bothTotal)
+        ->assertJsonPath('scenarios.1.note', $note);
+
+    expect(Coupon::count())->toBe(0);
+})->with([
+    'not combinable' => [false, 20000, null],
+    'combinable' => [true, 18000, null],
+]);
+
+test('the price preview uses the camp a coupon is limited to', function () {
+    ['camp' => $camp] = thanksgivingCamp();
+    $camp->update(['bundle_price' => 20000]);
+
+    $this->actingAs($this->admin)->postJson(route('admin.coupons.preview'), [
+        'type' => 'percent',
+        'value' => '5',
+        'camp_ids' => [$camp->id],
+    ])
+        ->assertOk()
+        ->assertJsonPath('camp', 'Thanksgiving Camp')
+        ->assertJsonPath('scenarios.1.total', 20000)
+        ->assertJsonPath('scenarios.1.note', 'Multi-session discount applied — it’s a better deal than your coupon.');
+});
+
+test('only admins can preview coupon prices', function () {
+    $this->actingAs(User::factory()->staff()->create())
+        ->postJson(route('admin.coupons.preview'), ['type' => 'percent', 'value' => '20'])
+        ->assertForbidden();
+});

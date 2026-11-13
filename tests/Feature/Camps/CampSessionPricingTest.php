@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Mail;
 
 function eaglesCoupon(): Coupon
 {
-    return Coupon::factory()->fixedPerItem(2500)->scope(CouponScope::Camps)->create(['code' => 'Thanks30']);
+    return Coupon::factory()->fixedPerItem(2500)->combinable()->scope(CouponScope::Camps)->create(['code' => 'Thanks30']);
 }
 
 function quote(Camp $camp, array $payload)
@@ -48,9 +48,65 @@ test('the Eagles code takes $25 off each session on top of the multi-session pri
     'both sessions' => [true, [['label' => 'Multi-session price', 'amount' => 2500], ['label' => 'THANKS30', 'amount' => 5000]], 17500],
 ]);
 
+test('coupons stack on the multi-session price only when they are combinable', function (?Closure $makeCoupon, bool $bothSessions, int $total, ?string $note) {
+    ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
+    $makeCoupon && $makeCoupon()->create(['code' => 'PROMO']);
+
+    quote($camp, array_filter([
+        'days' => dayIdsOf($bothSessions ? [$pitching, $fielding] : [$pitching]),
+        'camp_age_group_id' => $young->id,
+        'coupon_code' => $makeCoupon ? 'PROMO' : null,
+    ]))
+        ->assertOk()
+        ->assertJsonPath('total', $total)
+        ->assertJsonPath('coupon_note', $note);
+})->with([
+    'no coupon, 1 session' => [null, false, 12500, null],
+    'no coupon, 2 sessions' => [null, true, 22500, null],
+    '20%, not combinable, 1 session' => [fn () => Coupon::factory()->percent(20), false, 10000, null],
+    '20%, not combinable, 2 sessions' => [fn () => Coupon::factory()->percent(20), true, 20000, null],
+    '20%, combinable, 2 sessions' => [fn () => Coupon::factory()->percent(20)->combinable(), true, 18000, null],
+    '$25 per session, not combinable, 2 sessions' => [fn () => Coupon::factory()->fixedPerItem(2500), true, 20000, null],
+    '5%, not combinable, 2 sessions' => [fn () => Coupon::factory()->percent(5), true, 22500, 'Multi-session discount applied — it’s a better deal than your coupon.'],
+    '100%, not combinable, 1 session' => [fn () => Coupon::factory()->percent(100), false, 0, null],
+]);
+
+test('a coupon that replaces the multi-session price is the only discount listed', function () {
+    ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
+    Coupon::factory()->percent(20)->create(['code' => 'PROMO']);
+
+    quote($camp, ['days' => dayIdsOf([$pitching, $fielding]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'PROMO'])
+        ->assertJson(['discounts' => [['label' => 'PROMO', 'amount' => 5000]], 'discount_label' => 'PROMO', 'coupon_code' => 'PROMO']);
+});
+
+test('when a coupon saves the same as the multi-session price, the multi-session price is used', function () {
+    ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
+    Coupon::factory()->fixedOrder(2500)->create(['code' => 'EVEN']);
+
+    quote($camp, ['days' => dayIdsOf([$pitching, $fielding]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'EVEN'])
+        ->assertJson(['discounts' => [['label' => 'Multi-session price', 'amount' => 2500]], 'coupon_code' => null, 'total' => 22500]);
+});
+
+test('a sign-up is charged the server’s price whatever total the browser sends', function () {
+    ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
+    Coupon::factory()->percent(20)->create(['code' => 'PROMO']);
+
+    $this->post(route('camps.register.store', $camp), validCampRegistration($camp, [
+        'days' => dayIdsOf([$pitching, $fielding]),
+        'camp_age_group_id' => $young->id,
+        'coupon_code' => 'PROMO',
+        'total' => 1,
+        'discount' => 24999,
+    ]));
+
+    expect(Order::query()->sole())
+        ->total->toBe(20000)
+        ->coupon_code->toBe('PROMO');
+});
+
 test('a percent code comes off the multi-session price, not the full price', function () {
     ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
-    Coupon::factory()->percent(10)->create(['code' => 'TEN']);
+    Coupon::factory()->percent(10)->combinable()->create(['code' => 'TEN']);
 
     quote($camp, ['days' => dayIdsOf([$pitching, $fielding]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'TEN'])
         ->assertOk()

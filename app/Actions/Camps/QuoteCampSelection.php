@@ -8,10 +8,9 @@ use App\Models\Camp;
 use App\Models\CampAgeGroup;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
+use App\Support\Camps\CampPricing;
 use App\Support\Camps\CampQuote;
 use App\Support\Camps\CampQuoteLine;
-use App\Support\Coupons\CouponCalculator;
-use App\Support\Coupons\DiscountableLine;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -37,20 +36,9 @@ class QuoteCampSelection
         $lines = $this->priceLines($camp, array_values(array_unique(array_map('intval', $dayIds))));
         $this->ensureRoom($camp, $lines, $ageGroup);
 
-        $subtotal = array_sum(array_map(fn (CampQuoteLine $line): int => $line->price, $lines));
-        $bundleDiscount = $this->bundleDiscount($camp, $lines, $subtotal);
         $coupon = $this->resolveCoupon->handle($couponCode, OrderType::Camp, $camp, $lockCoupon);
 
-        return new CampQuote(
-            lines: $lines,
-            subtotal: $subtotal,
-            bundleDiscount: $bundleDiscount,
-            coupon: $coupon,
-            couponDiscount: $coupon ? min(
-                CouponCalculator::discount($coupon, $this->discountableLines($lines, $bundleDiscount)),
-                $subtotal - $bundleDiscount,
-            ) : 0,
-        );
+        return CampPricing::quote($lines, $camp->sessions->count(), $camp->bundle_price, $coupon);
     }
 
     private function resolveAgeGroup(Camp $camp, ?int $ageGroupId): ?CampAgeGroup
@@ -125,47 +113,5 @@ class QuoteCampSelection
                 }
             }
         }
-    }
-
-    /**
-     * The lines a coupon is worked out on: each session's price with its share of
-     * the multi-session saving already taken off, so the coupon comes off the
-     * bundled price instead of the full one.
-     *
-     * @param  list<CampQuoteLine>  $lines
-     * @return list<DiscountableLine>
-     */
-    private function discountableLines(array $lines, int $bundleDiscount): array
-    {
-        $subtotal = array_sum(array_map(fn (CampQuoteLine $line): int => $line->price, $lines));
-        $remainingDiscount = $bundleDiscount;
-        $discountable = [];
-
-        foreach ($lines as $index => $line) {
-            $share = $index === count($lines) - 1 || $subtotal === 0
-                ? $remainingDiscount
-                : intdiv($bundleDiscount * $line->price, $subtotal);
-            $remainingDiscount -= $share;
-            $discountable[] = new DiscountableLine(max(0, $line->price - $share));
-        }
-
-        return $discountable;
-    }
-
-    /**
-     * The saving from the multi-session price, when every day of every session is picked.
-     *
-     * @param  list<CampQuoteLine>  $lines
-     */
-    private function bundleDiscount(Camp $camp, array $lines, int $subtotal): int
-    {
-        $everything = count($lines) === $camp->sessions->count()
-            && collect($lines)->every(fn (CampQuoteLine $line): bool => $line->wholeSession);
-
-        if (! $everything || $camp->bundle_price === null || $camp->sessions->count() < 2) {
-            return 0;
-        }
-
-        return max(0, $subtotal - $camp->bundle_price);
     }
 }

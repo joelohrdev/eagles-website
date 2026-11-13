@@ -5,8 +5,9 @@ namespace App\Support\Camps;
 use App\Models\Coupon;
 
 /**
- * What a camp selection costs. The multi-session (bundle) price comes off first,
- * then any coupon is taken off what is left.
+ * What a camp selection costs, built by CampPricing. A combinable coupon is
+ * taken off after the multi-session (bundle) price; any other coupon competes
+ * with it, and only the bigger saving is applied (the multi-session price wins a tie).
  */
 final readonly class CampQuote
 {
@@ -14,6 +15,7 @@ final readonly class CampQuote
 
     /**
      * @param  list<CampQuoteLine>  $lines
+     * @param  bool  $couponStacks  The coupon is combinable with the multi-session price.
      */
     public function __construct(
         public array $lines,
@@ -21,6 +23,7 @@ final readonly class CampQuote
         public int $bundleDiscount,
         public ?Coupon $coupon,
         public int $couponDiscount,
+        public bool $couponStacks = false,
     ) {}
 
     /**
@@ -35,11 +38,23 @@ final readonly class CampQuote
 
     public function couponApplies(): bool
     {
-        return $this->coupon !== null && $this->couponDiscount > 0;
+        if ($this->coupon === null || $this->couponDiscount === 0) {
+            return false;
+        }
+
+        return $this->couponStacks || $this->couponDiscount > $this->bundleDiscount;
     }
 
     /**
-     * The coupon that ends up on the order, or null when no code takes anything off.
+     * Whether the multi-session saving is taken; a non-combinable coupon that beats it replaces it.
+     */
+    public function bundleApplies(): bool
+    {
+        return $this->bundleDiscount > 0 && ($this->couponStacks || ! $this->couponApplies());
+    }
+
+    /**
+     * The coupon that ends up on the order, or null when it isn't used.
      */
     public function appliedCoupon(): ?Coupon
     {
@@ -47,7 +62,7 @@ final readonly class CampQuote
     }
 
     /**
-     * Each discount taken off, in the order applied.
+     * Each discount actually taken off, in the order applied.
      *
      * @return list<array{label: string, amount: int}>
      */
@@ -55,7 +70,7 @@ final readonly class CampQuote
     {
         $discounts = [];
 
-        if ($this->bundleDiscount > 0) {
+        if ($this->bundleApplies()) {
             $discounts[] = ['label' => self::BUNDLE_LABEL, 'amount' => $this->bundleDiscount];
         }
 
@@ -68,7 +83,7 @@ final readonly class CampQuote
 
     public function discount(): int
     {
-        return $this->bundleDiscount + ($this->couponApplies() ? $this->couponDiscount : 0);
+        return array_sum(array_column($this->discounts(), 'amount'));
     }
 
     /**
@@ -83,11 +98,12 @@ final readonly class CampQuote
 
     public function total(): int
     {
-        return $this->subtotal - $this->discount();
+        return max(0, $this->subtotal - $this->discount());
     }
 
     /**
-     * Shown under the coupon field when a code is valid but takes nothing off this selection.
+     * Shown under the coupon field when a valid code isn't used: either the
+     * multi-session price saves more, or the code takes nothing off.
      */
     public function couponNote(): ?string
     {
@@ -95,7 +111,9 @@ final readonly class CampQuote
             return null;
         }
 
-        return __('This code doesn’t take anything off these sessions.');
+        return $this->bundleApplies()
+            ? __('Multi-session discount applied — it’s a better deal than your coupon.')
+            : __('This code doesn’t take anything off these sessions.');
     }
 
     /**

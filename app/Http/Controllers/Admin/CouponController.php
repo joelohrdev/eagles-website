@@ -5,11 +5,17 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\CouponScope;
 use App\Enums\CouponType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PreviewCouponRequest;
 use App\Http\Requests\Admin\StoreCouponRequest;
 use App\Http\Requests\Admin\UpdateCouponRequest;
 use App\Models\Camp;
+use App\Models\CampSession;
 use App\Models\Coupon;
 use App\Services\ActivityLogger;
+use App\Support\Camps\CampPricing;
+use App\Support\Camps\CampQuoteLine;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -69,7 +75,7 @@ class CouponController extends Controller
         return Inertia::render('admin/coupons/Edit', [
             ...self::formOptions(),
             'coupon' => [
-                ...$coupon->only(['id', 'code', 'description', 'starts_at', 'expires_at', 'max_redemptions', 'is_active']),
+                ...$coupon->only(['id', 'code', 'description', 'starts_at', 'expires_at', 'max_redemptions', 'is_active', 'combinable_with_multi_session']),
                 'type' => $coupon->type->value,
                 'applies_to' => $coupon->applies_to->value,
                 'value' => $coupon->type === CouponType::Percent
@@ -113,6 +119,77 @@ class CouponController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Coupon deleted.')]);
 
         return to_route('admin.coupons.index');
+    }
+
+    /**
+     * Price one session and every session of a camp with the coupon as it is
+     * being edited, through the same pricing as checkout. Uses the coupon's
+     * camp if it is limited to one, else the next upcoming camp with several
+     * sessions, else a sample camp ($125 sessions, $225 for both).
+     */
+    public function preview(PreviewCouponRequest $request): JsonResponse
+    {
+        $coupon = $request->coupon();
+        $camp = self::previewCamp($request->campIds());
+
+        if ($camp === null) {
+            $sessions = collect([
+                new CampSession(['name' => 'Session 1', 'price' => 12500]),
+                new CampSession(['name' => 'Session 2', 'price' => 12500]),
+            ]);
+            $bundlePrice = 22500;
+        } else {
+            $sessions = $camp->sessions;
+            $bundlePrice = $camp->bundle_price;
+        }
+
+        $line = fn (CampSession $session): CampQuoteLine => new CampQuoteLine(
+            session: $session,
+            days: $session->relationLoaded('days') ? $session->days : new Collection,
+            wholeSession: true,
+            price: (int) $session->price,
+        );
+
+        $scenarios = [['label' => '1 session', 'lines' => [$line($sessions->first())]]];
+
+        if ($sessions->count() > 1) {
+            $scenarios[] = [
+                'label' => $sessions->count() === 2 ? 'Both sessions' : "All {$sessions->count()} sessions",
+                'lines' => $sessions->map($line)->values()->all(),
+            ];
+        }
+
+        return response()->json([
+            'camp' => $camp?->name,
+            'scenarios' => array_map(function (array $scenario) use ($sessions, $bundlePrice, $coupon): array {
+                $quote = CampPricing::quote(array_values($scenario['lines']), $sessions->count(), $bundlePrice, $coupon);
+
+                return [
+                    'label' => $scenario['label'],
+                    'subtotal' => $quote->subtotal,
+                    'discounts' => array_map(
+                        fn (array $discount): array => [...$discount, 'label' => $discount['label'] === 'PREVIEW' ? 'This coupon' : $discount['label']],
+                        $quote->discounts(),
+                    ),
+                    'total' => $quote->total(),
+                    'note' => $quote->couponNote(),
+                ];
+            }, $scenarios),
+        ]);
+    }
+
+    /**
+     * @param  list<int>  $campIds
+     */
+    private static function previewCamp(array $campIds): ?Camp
+    {
+        $query = Camp::query()->with('sessions.days');
+
+        $camp = $campIds !== []
+            ? $query->whereKey($campIds[0])->first()
+            : $query->upcoming()->has('sessions', '>=', 2)->orderBy('starts_at')->first();
+
+        return $camp?->sessions->isNotEmpty() ? $camp : null;
     }
 
     /**

@@ -21,6 +21,7 @@ class CouponFactory extends Factory
             'type' => CouponType::Percent,
             'value' => 10,
             'applies_to' => CouponScope::All,
+            'combinable_with_multi_session' => false,
             'starts_at' => null,
             'expires_at' => null,
             'max_redemptions' => null,
@@ -41,6 +42,14 @@ class CouponFactory extends Factory
     public function fixedPerItem(int $cents): static
     {
         return $this->state(fn () => ['type' => CouponType::FixedPerItem, 'value' => $cents]);
+    }
+
+    /**
+     * Stacks on a camp's multi-session price instead of competing with it.
+     */
+    public function combinable(): static
+    {
+        return $this->state(fn () => ['combinable_with_multi_session' => true]);
     }
 
     public function scope(CouponScope $scope): static

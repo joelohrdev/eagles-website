@@ -32,9 +32,10 @@ use Illuminate\Support\Str;
  * @property Carbon|null $expires_at
  * @property int|null $max_redemptions
  * @property bool $is_active
+ * @property bool $combinable_with_multi_session Whether it stacks on a camp's multi-session price, or competes with it.
  * @property int|null $redemptions_count
  */
-#[Fillable(['code', 'description', 'type', 'value', 'applies_to', 'starts_at', 'expires_at', 'max_redemptions', 'is_active'])]
+#[Fillable(['code', 'description', 'type', 'value', 'applies_to', 'combinable_with_multi_session', 'starts_at', 'expires_at', 'max_redemptions', 'is_active'])]
 class Coupon extends Model
 {
     /** @use HasFactory<CouponFactory> */
@@ -47,6 +48,7 @@ class Coupon extends Model
 
     protected $attributes = [
         'applies_to' => 'all',
+        'combinable_with_multi_session' => false,
         'is_active' => true,
     ];
 
@@ -60,6 +62,7 @@ class Coupon extends Model
             'expires_at' => 'datetime',
             'max_redemptions' => 'integer',
             'is_active' => 'boolean',
+            'combinable_with_multi_session' => 'boolean',
         ];
     }
 

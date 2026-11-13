@@ -33,4 +33,16 @@ export type AdminCoupon = {
     max_redemptions: number | null;
     redemptions_count: number;
     is_active: boolean;
+    combinable_with_multi_session: boolean;
+};
+
+export type CouponPreview = {
+    camp: string | null;
+    scenarios: {
+        label: string;
+        subtotal: number;
+        discounts: { label: string; amount: number }[];
+        total: number;
+        note: string | null;
+    }[];
 };

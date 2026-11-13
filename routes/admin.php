@@ -89,6 +89,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::put('payments', [PaymentSettingController::class, 'update'])->name('payments.update');
         Route::post('payments/check', [PaymentSettingController::class, 'check'])->name('payments.check');
 
+        Route::post('coupons/preview', [CouponController::class, 'preview'])->name('coupons.preview');
         Route::resource('coupons', CouponController::class)->except(['show']);
 
         Route::get('activity', [ActivityLogController::class, 'index'])->name('activity.index');

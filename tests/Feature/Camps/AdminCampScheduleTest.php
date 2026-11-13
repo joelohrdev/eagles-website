@@ -291,7 +291,7 @@ test('guests cannot open a camp preview', function () {
 test('staff can try the registration form on a draft and get live totals', function () {
     $this->actingAs($this->staff)->post(route('admin.camps.store'), thanksgivingCampForm(['is_published' => 0]));
     $camp = Camp::query()->sole();
-    Coupon::factory()->fixedPerItem(2500)->create(['code' => 'THANKS30']);
+    Coupon::factory()->fixedPerItem(2500)->combinable()->create(['code' => 'THANKS30']);
     $young = $camp->ageGroups()->first();
 
     $this->get(route('camps.register', $camp))->assertNotFound();
