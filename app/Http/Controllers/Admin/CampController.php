@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Camps\SyncCampCoaches;
 use App\Actions\Camps\SyncCampSchedule;
 use App\Actions\Seo\SyncSeoMeta;
+use App\Enums\RegistrationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCampRequest;
 use App\Http\Requests\Admin\UpdateCampRequest;
@@ -20,6 +21,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class CampController extends Controller
 {
@@ -148,27 +150,40 @@ class CampController extends Controller
     {
         $attributes = $request->campAttributes();
 
-        if ($request->boolean('remove_image') && $camp->image_path) {
-            $this->images->delete($camp->image_path);
+        $oldImagePath = $camp->image_path;
+        $newImagePath = null;
+
+        if ($request->boolean('remove_image') && $oldImagePath) {
             $attributes['image_path'] = null;
         }
 
         if ($request->hasFile('image')) {
-            $attributes['image_path'] = $this->images->replace($request->file('image'), 'camps', $camp->image_path);
+            $attributes['image_path'] = $newImagePath = $this->images->store($request->file('image'), 'camps');
         }
 
         $wasPublished = $camp->is_published;
         $changed = [];
 
-        DB::transaction(function () use ($camp, $attributes, $request, &$changed): void {
-            $camp->update($attributes);
-            /** Field names only: values can be long text, and the passcode must not end up in the log. */
-            $changed = array_values(array_diff(array_keys($camp->getChanges()), ['updated_at', 'preview_passcode']));
-            if ($camp->wasChanged('preview_passcode')) {
-                $changed[] = 'preview passcode';
-            }
-            $this->syncCampSchedule->handle($camp, $request->schedule());
-        });
+        /** Old image files are only deleted once the save has gone through, so a rejected save never leaves a broken image. */
+        try {
+            DB::transaction(function () use ($camp, $attributes, $request, &$changed): void {
+                $camp->update($attributes);
+                /** Field names only: values can be long text, and the passcode must not end up in the log. */
+                $changed = array_values(array_diff(array_keys($camp->getChanges()), ['updated_at', 'preview_passcode']));
+                if ($camp->wasChanged('preview_passcode')) {
+                    $changed[] = 'preview passcode';
+                }
+                $this->syncCampSchedule->handle($camp, $request->schedule());
+            });
+        } catch (Throwable $e) {
+            $this->images->delete($newImagePath);
+
+            throw $e;
+        }
+
+        if ($oldImagePath && $camp->image_path !== $oldImagePath) {
+            $this->images->delete($oldImagePath);
+        }
 
         $this->syncCampCoaches->handle($camp, $request->coaches());
 
@@ -187,6 +202,20 @@ class CampController extends Controller
 
     public function destroy(Camp $camp): RedirectResponse
     {
+        /** Paid and held registrations carry money and spots; deleting them would orphan their orders. */
+        $active = $camp->registrations()
+            ->whereIn('status', [RegistrationStatus::Paid, RegistrationStatus::PendingPayment])
+            ->count();
+
+        if ($active > 0) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans_choice(
+                'This camp has :count registered player. Cancel or refund it first, or move the camp to drafts instead.|This camp has :count registered players. Cancel or refund them first, or move the camp to drafts instead.',
+                $active,
+            )]);
+
+            return back();
+        }
+
         $this->images->delete($camp->image_path);
 
         if ($camp->seoMeta?->share_image_path) {

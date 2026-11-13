@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Support\Payments\CheckoutSession;
 use App\Support\Payments\WebhookEvent;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * In-memory gateway for tests and local development without Stripe keys.
@@ -29,6 +30,9 @@ class FakeGateway implements PaymentGateway
     /** @var list<string> */
     public array $closedSessions = [];
 
+    /** Make createCheckoutSession throw, like a Stripe API error. */
+    public bool $failCheckout = false;
+
     public function isAvailable(): bool
     {
         return true;
@@ -36,6 +40,10 @@ class FakeGateway implements PaymentGateway
 
     public function createCheckoutSession(Order $order, string $successUrl, string $cancelUrl): CheckoutSession
     {
+        if ($this->failCheckout) {
+            throw new RuntimeException('Fake checkout failure.');
+        }
+
         $id = 'cs_fake_'.Str::random(16);
         $this->sessions[] = ['order_id' => $order->id, 'session_id' => $id];
 

@@ -120,7 +120,7 @@ class StoreCampRequest extends FormRequest
             'sessions.*.name' => ['required', 'string', 'max:100'],
             'sessions.*.description' => ['nullable', 'string', 'max:1000'],
             'sessions.*.price' => [$required, 'numeric', 'min:0', 'max:100000'],
-            'sessions.*.day_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'sessions.*.day_price' => ['nullable', 'numeric', 'gt:0', 'max:100000'],
             'sessions.*.days' => [$required, 'array', $this->isPublishing() ? 'min:1' : 'min:0', 'max:14'],
             'sessions.*.days.*.id' => ['nullable', 'integer'],
             'sessions.*.days.*.date' => [$required, 'date_format:Y-m-d'],

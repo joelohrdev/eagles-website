@@ -46,7 +46,10 @@ class QuoteCampSelection
             subtotal: $subtotal,
             bundleDiscount: $bundleDiscount,
             coupon: $coupon,
-            couponDiscount: $coupon ? CouponCalculator::discount($coupon, $this->discountableLines($lines, $bundleDiscount)) : 0,
+            couponDiscount: $coupon ? min(
+                CouponCalculator::discount($coupon, $this->discountableLines($lines, $bundleDiscount)),
+                $subtotal - $bundleDiscount,
+            ) : 0,
         );
     }
 
@@ -83,6 +86,12 @@ class QuoteCampSelection
 
             if ($picked->isEmpty()) {
                 continue;
+            }
+
+            $past = $picked->first(fn (CampSessionDay $day): bool => $day->date !== null && $day->date->lt(today()));
+
+            if ($past !== null) {
+                throw ValidationException::withMessages(['days' => __(':day has already happened.', ['day' => $past->title()])]);
             }
 
             $whole = $picked->count() === $session->days->count();

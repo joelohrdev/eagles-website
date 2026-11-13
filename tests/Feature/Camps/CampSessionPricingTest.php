@@ -10,6 +10,8 @@ use App\Mail\CampRegistrationConfirmation;
 use App\Mail\OrderReceipt;
 use App\Models\Camp;
 use App\Models\CampRegistration;
+use App\Models\CampSession;
+use App\Models\CampSessionDay;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\User;
@@ -300,4 +302,35 @@ test('the daily roster lists each paid player once per booked day, sorted and fi
     $youngSaturday = $this->actingAs($staff)->get(route('admin.camps.registrations.roster', ['camp' => $camp, 'day' => $pitching->days->first()->id, 'age_group' => $young->id]))->streamedContent();
     expect(substr_count(trim($youngSaturday), "\n"))->toBe(1)
         ->and($youngSaturday)->toContain('Ava Young');
+});
+
+test('days that have already happened cannot be booked', function () {
+    ['camp' => $camp, 'young' => $young, 'pitching' => $pitching] = thanksgivingCamp();
+    $this->travelTo('2026-11-22 09:00:00');
+
+    quote($camp, ['days' => dayIdsOf([$pitching]), 'camp_age_group_id' => $young->id])
+        ->assertJsonValidationErrors(['days' => 'Sat, Nov 21 has already happened.']);
+});
+
+test('registration closes once the camp is over, even without a close date', function () {
+    ['camp' => $camp] = thanksgivingCamp();
+    $camp->update(['registration_closes_at' => null, 'ends_at' => '2026-11-25 20:30:00']);
+    $this->travelTo('2026-11-26 09:00:00');
+
+    expect($camp->fresh()->isRegistrationOpen())->toBeFalse()
+        ->and($camp->fresh()->registrationState())->toBe('closed');
+});
+
+test('a coupon never takes the total below zero after the multi-session price', function () {
+    ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
+    $pitching->update(['price' => 333]);
+    $fielding->update(['price' => 333]);
+    $extra = CampSession::factory()->for($camp)->create(['name' => 'Extra', 'price' => 1]);
+    CampSessionDay::factory()->for($extra, 'session')->create(['date' => '2026-11-27']);
+    $camp->update(['bundle_price' => 1]);
+    Coupon::factory()->percent(100)->create(['code' => 'ALL']);
+
+    quote($camp, ['days' => dayIdsOf([$pitching, $fielding, $extra]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'ALL'])
+        ->assertOk()
+        ->assertJson(['total' => 0]);
 });

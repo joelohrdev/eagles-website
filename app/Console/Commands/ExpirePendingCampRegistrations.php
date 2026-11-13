@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Actions\Orders\CancelPendingOrder;
+use App\Contracts\PaymentGateway;
 use App\Enums\RegistrationStatus;
 use App\Models\CampRegistration;
 use App\Services\ActivityLogger;
@@ -14,7 +15,7 @@ class ExpirePendingCampRegistrations extends Command
 
     protected $description = 'Cancel unpaid camp registrations whose payment hold has expired and release their spots';
 
-    public function handle(CancelPendingOrder $cancelPendingOrder, ActivityLogger $activity): int
+    public function handle(CancelPendingOrder $cancelPendingOrder, PaymentGateway $gateway, ActivityLogger $activity): int
     {
         $activity->actingAs(ActivityLogger::SYSTEM);
 
@@ -25,7 +26,19 @@ class ExpirePendingCampRegistrations extends Command
             ->where('expires_at', '<', now())
             ->get();
 
+        $released = 0;
+
         foreach ($expired as $registration) {
+            /**
+             * Close the payment page first. If it was already paid (or Stripe can't
+             * be reached), leave the hold for the webhook instead of giving the spot away.
+             */
+            if ($registration->order?->isPending() && ! $gateway->closeCheckoutSession($registration->order)) {
+                continue;
+            }
+
+            $released++;
+
             if ($registration->order) {
                 $cancelPendingOrder->handle($registration->order, 'Payment hold expired');
             }
@@ -38,7 +51,7 @@ class ExpirePendingCampRegistrations extends Command
             ]);
         }
 
-        $this->info("Expired {$expired->count()} pending camp registration(s).");
+        $this->info("Expired {$released} pending camp registration(s).");
 
         return self::SUCCESS;
     }

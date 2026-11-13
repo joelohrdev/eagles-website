@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Contracts\PaymentGateway;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\RegistrationStatus;
@@ -72,9 +73,16 @@ class OrderController extends Controller
         ]);
     }
 
-    public function update(UpdateOrderRequest $request, Order $order, ActivityLogger $activity): RedirectResponse
+    public function update(UpdateOrderRequest $request, Order $order, ActivityLogger $activity, PaymentGateway $gateway): RedirectResponse
     {
         $validated = $request->validated();
+
+        /** Close the payment page before cancelling, or the customer could still pay for a released spot. */
+        if ($order->isPending() && ($validated['status'] ?? null) === OrderStatus::Cancelled->value && ! $gateway->closeCheckoutSession($order)) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('This order’s payment may have just gone through, so it wasn’t cancelled. Wait a minute and check again.')]);
+
+            return to_route('admin.orders.show', $order);
+        }
         $attributes = ['notes' => $validated['notes'] ?? null];
 
         if (! empty($validated['status']) && $validated['status'] !== $order->status->value) {

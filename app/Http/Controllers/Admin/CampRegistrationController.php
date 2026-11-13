@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Orders\CancelPendingOrder;
+use App\Contracts\PaymentGateway;
 use App\Enums\RegistrationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Camp;
@@ -166,8 +168,31 @@ class CampRegistrationController extends Controller
         }, $filename, ['Content-Type' => 'text/csv']);
     }
 
-    public function destroy(Camp $camp, CampRegistration $registration, ActivityLogger $activity): RedirectResponse
+    /**
+     * Delete a registration. A paid one must be refunded first (so the money is
+     * never left on an order with no player), and a pending one has its Stripe
+     * page closed and its order cancelled so it can't be paid afterwards.
+     */
+    public function destroy(Camp $camp, CampRegistration $registration, ActivityLogger $activity, PaymentGateway $gateway, CancelPendingOrder $cancelPendingOrder): RedirectResponse
     {
+        $order = $registration->order;
+
+        if ($order?->isPaid()) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('This registration is paid. Refund it in Stripe first, then delete it.')]);
+
+            return back();
+        }
+
+        if ($order?->isPending()) {
+            if (! $gateway->closeCheckoutSession($order)) {
+                Inertia::flash('toast', ['type' => 'error', 'message' => __('This registration’s payment may have just gone through. Wait a minute and check again.')]);
+
+                return back();
+            }
+
+            $cancelPendingOrder->handle($order, 'Registration deleted by staff');
+        }
+
         $activity->log('camp_registration.deleted', "{$registration->playerName()}'s registration for {$camp->name} deleted", $registration, [
             'camp' => $camp->name,
             'player' => $registration->playerName(),

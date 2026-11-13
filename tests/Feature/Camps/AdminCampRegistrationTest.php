@@ -1,5 +1,7 @@
 <?php
 
+use App\Contracts\PaymentGateway;
+use App\Enums\OrderStatus;
 use App\Enums\RegistrationStatus;
 use App\Models\Camp;
 use App\Models\CampRegistration;
@@ -98,3 +100,41 @@ test('changing a camp order status in admin updates its registration', function 
     'pending order cancelled' => [fn () => Order::factory()->camp()->create(), fn ($factory) => $factory->pending(), 'cancelled', RegistrationStatus::Cancelled],
     'paid order refunded' => [fn () => Order::factory()->camp()->paid()->create(), fn ($factory) => $factory, 'refunded', RegistrationStatus::Refunded],
 ]);
+
+test('deleting a registration held for payment closes its Stripe page and cancels the order', function () {
+    $order = Order::factory()->camp()->create(['stripe_checkout_session_id' => 'cs_fake_held']);
+    $registration = CampRegistration::factory()->for($this->camp)->pending()->create(['order_id' => $order->id]);
+
+    $this->actingAs($this->staff)
+        ->delete(route('admin.camps.registrations.destroy', [$this->camp, $registration]));
+
+    $this->assertModelMissing($registration);
+    expect($order->fresh()->status)->toBe(OrderStatus::Cancelled)
+        ->and(app(PaymentGateway::class)->closedSessions)->toBe(['cs_fake_held']);
+});
+
+test('a registration is not deleted while its order is paid, or may just have been paid', function (Closure $makeOrder) {
+    $order = $makeOrder();
+    $registration = CampRegistration::factory()->for($this->camp)->pending()->create(['order_id' => $order->id]);
+    app(PaymentGateway::class)->paidSessions[] = 'cs_fake_paid';
+
+    $this->actingAs($this->staff)
+        ->delete(route('admin.camps.registrations.destroy', [$this->camp, $registration]));
+
+    $this->assertModelExists($registration);
+    expect($order->fresh()->status)->toBe($order->status);
+})->with([
+    'paid' => [fn () => Order::factory()->camp()->paid()->create()],
+    'paid at Stripe, not yet confirmed' => [fn () => Order::factory()->camp()->create(['stripe_checkout_session_id' => 'cs_fake_paid'])],
+]);
+
+test('staff cannot cancel a pending order that was just paid at Stripe', function () {
+    $order = Order::factory()->camp()->create(['stripe_checkout_session_id' => 'cs_fake_paid']);
+    $registration = CampRegistration::factory()->for($this->camp)->pending()->create(['order_id' => $order->id]);
+    app(PaymentGateway::class)->paidSessions[] = 'cs_fake_paid';
+
+    $this->actingAs($this->staff)->put(route('admin.orders.update', $order), ['status' => 'cancelled']);
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Pending)
+        ->and($registration->fresh()->status)->toBe(RegistrationStatus::PendingPayment);
+});

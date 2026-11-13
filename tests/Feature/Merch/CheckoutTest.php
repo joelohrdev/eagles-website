@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Orders\MarkOrderPaid;
+use App\Contracts\PaymentGateway;
 use App\Enums\OrderStatus;
 use App\Mail\OrderReceipt;
 use App\Models\Order;
@@ -213,4 +214,16 @@ test('checkout phones must have ten digits', function () {
         ->assertSessionHasErrors('phone');
 
     expect(Order::count())->toBe(0);
+});
+
+test('a Stripe error while opening the payment page cancels the order and keeps the cart', function () {
+    $variant = ProductVariant::factory()->create();
+    app(PaymentGateway::class)->failCheckout = true;
+
+    $this->withSession(['cart' => [$variant->id => 1]])
+        ->post(route('checkout.store'), checkoutPayload())
+        ->assertSessionHasErrors('cart');
+
+    expect(Order::query()->sole()->status)->toBe(OrderStatus::Cancelled)
+        ->and(session('cart'))->toBe([$variant->id => 1]);
 });

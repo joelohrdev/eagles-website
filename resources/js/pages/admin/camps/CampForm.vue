@@ -261,7 +261,7 @@ const seoFallback = computed(() => ({
                         :model-value="camp?.registration_closes_at"
                         optional
                         :error="errors.registration_closes_at"
-                        hint="Leave blank to stay open until the camp starts."
+                        hint="Leave blank to stay open until the camp ends. Days that have passed can’t be booked."
                     />
                 </div>
 

@@ -1,8 +1,12 @@
 <?php
 
+use App\Actions\Orders\CancelPendingOrder;
+use App\Actions\Orders\MarkOrderPaid;
 use App\Contracts\PaymentGateway;
 use App\Enums\OrderStatus;
 use App\Enums\RegistrationStatus;
+use App\Mail\CampRegistrationConfirmation;
+use App\Models\ActivityLog;
 use App\Models\Camp;
 use App\Models\CampRegistration;
 use App\Models\Coupon;
@@ -119,4 +123,57 @@ test('with payments switched off, paid sign-ups and orders are refused without h
 
     expect(CampRegistration::count())->toBe(0)
         ->and(Order::count())->toBe(0);
+});
+
+test('a payment that lands after the hold ended keeps the spot while there is still room', function () {
+    ['camp' => $camp, 'form' => $form] = pitchingSignUp();
+    $this->post(route('camps.register.store', $camp), $form);
+    $order = Order::query()->sole();
+    app(CancelPendingOrder::class)->handle($order, 'Payment hold expired');
+
+    app(MarkOrderPaid::class)->handle($order->refresh());
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($order->campRegistration->status)->toBe(RegistrationStatus::Paid);
+    Mail::assertQueued(CampRegistrationConfirmation::class);
+});
+
+test('a payment that lands after its spot was taken is recorded and flagged for staff', function () {
+    ['camp' => $camp, 'form' => $form] = pitchingSignUp(olderCapacity: 1);
+    $form['camp_age_group_id'] = $camp->ageGroups()->where('name', '13–17U')->value('id');
+    $this->post(route('camps.register.store', $camp), $form);
+    $late = Order::query()->sole();
+    app(CancelPendingOrder::class)->handle($late, 'Payment hold expired');
+    $this->post(route('camps.register.store', $camp), [...$form, 'email' => 'other@example.com'])->assertSessionHasNoErrors();
+
+    app(MarkOrderPaid::class)->handle($late->refresh());
+
+    expect($late->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($late->campRegistration->status)->toBe(RegistrationStatus::Cancelled)
+        ->and(ActivityLog::query()->where('event', 'order.paid_without_spot')->count())->toBe(1);
+    Mail::assertNotQueued(CampRegistrationConfirmation::class);
+});
+
+test('a Stripe error while opening the payment page releases the spot and asks the parent to try again', function () {
+    Coupon::factory()->fixedPerItem(2500)->create(['code' => 'ONCE', 'max_redemptions' => 1]);
+    ['camp' => $camp, 'form' => $form] = pitchingSignUp(['coupon_code' => 'ONCE']);
+    app(PaymentGateway::class)->failCheckout = true;
+
+    $this->post(route('camps.register.store', $camp), $form)->assertSessionHasErrors('registration');
+
+    expect(Order::query()->sole()->status)->toBe(OrderStatus::Cancelled)
+        ->and(CampRegistration::query()->sole()->status)->toBe(RegistrationStatus::Cancelled);
+});
+
+test('the expiry job leaves a hold alone when its Stripe page was already paid', function () {
+    ['camp' => $camp, 'form' => $form] = pitchingSignUp();
+    $this->post(route('camps.register.store', $camp), $form);
+    $order = Order::query()->sole();
+    app(PaymentGateway::class)->paidSessions[] = $order->stripe_checkout_session_id;
+    $this->travel(CampRegistration::PENDING_HOLD_MINUTES + 1)->minutes();
+
+    $this->artisan('camps:expire-pending')->assertSuccessful();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Pending)
+        ->and($order->campRegistration->status)->toBe(RegistrationStatus::PendingPayment);
 });

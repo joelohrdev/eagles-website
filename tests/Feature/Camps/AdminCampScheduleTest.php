@@ -7,6 +7,8 @@ use App\Models\CampSessionDay;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
     $this->staff = User::factory()->staff()->create();
@@ -317,4 +319,31 @@ test('guests cannot use the preview registration form', function () {
 
     $this->get(route('camps.preview.register', $camp))->assertRedirect(route('login'));
     $this->postJson(route('camps.preview.quote', $camp), ['days' => [1]])->assertForbidden();
+});
+
+test('a rejected save keeps the camp’s current image', function () {
+    Storage::fake('public');
+    $this->actingAs($this->staff)->post(route('admin.camps.store'), thanksgivingCampForm());
+    $camp = Camp::query()->sole();
+    Storage::disk('public')->put('camps/old.webp', 'x');
+    $camp->update(['image_path' => 'camps/old.webp']);
+    $schedule = $this->actingAs($this->staff)->get(route('admin.camps.edit', $camp))->viewData('page')['props']['camp']['schedule'];
+    array_pop($schedule['sessions'][1]['days']);
+    CampRegistration::factory()->for($camp)->forDays([CampSessionDay::query()->where('label', 'Hitting')->sole()])->create();
+
+    $this->actingAs($this->staff)->put(route('admin.camps.update', $camp), [
+        ...thanksgivingCampForm($schedule),
+        'image' => UploadedFile::fake()->image('new.jpg', 1200, 800),
+    ])->assertSessionHasErrors('sessions');
+
+    expect($camp->fresh()->image_path)->toBe('camps/old.webp')
+        ->and(Storage::disk('public')->allFiles('camps'))->toBe(['camps/old.webp']);
+});
+
+test('a single-day price must be more than $0', function () {
+    $form = thanksgivingCampForm();
+    $form['sessions'][0]['day_price'] = '0';
+
+    $this->actingAs($this->staff)->post(route('admin.camps.store'), $form)
+        ->assertSessionHasErrors('sessions.0.day_price');
 });

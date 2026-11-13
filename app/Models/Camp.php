@@ -45,7 +45,10 @@ use Illuminate\Support\Facades\DB;
 class Camp extends Model
 {
     /** @use HasFactory<CampFactory> */
-    use HasFactory, HasRegistrationWindow, HasSeoMeta, HasSlug;
+    use HasFactory, HasRegistrationWindow, HasSeoMeta, HasSlug {
+        HasRegistrationWindow::isRegistrationOpen as windowIsOpen;
+        HasRegistrationWindow::registrationState as windowState;
+    }
 
     /**
      * @var list<string>
@@ -289,6 +292,24 @@ class Camp extends Model
     public function activeRegistrations(): HasMany
     {
         return $this->registrations()->countsAgainstCapacity();
+    }
+
+    /**
+     * Whether the camp is over, which closes registration even when no close date was set.
+     */
+    public function hasEnded(): bool
+    {
+        return $this->ends_at !== null && now()->gt($this->ends_at);
+    }
+
+    public function isRegistrationOpen(): bool
+    {
+        return ! $this->hasEnded() && $this->windowIsOpen();
+    }
+
+    public function registrationState(): string
+    {
+        return $this->hasEnded() ? 'closed' : $this->windowState();
     }
 
     /**

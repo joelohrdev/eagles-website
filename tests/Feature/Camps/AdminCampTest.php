@@ -132,9 +132,9 @@ test('staff can update a camp and remove its image', function () {
     Storage::disk('public')->assertMissing('camps/thumbs/old.webp');
 });
 
-test('staff can delete a camp, along with its registrations', function () {
+test('staff can delete a camp, along with its cancelled registrations', function () {
     $camp = Camp::factory()->create();
-    CampRegistration::factory()->for($camp)->create();
+    CampRegistration::factory()->for($camp)->cancelled()->create();
 
     $this->actingAs($this->staff)->delete(route('admin.camps.destroy', $camp))
         ->assertRedirect(route('admin.camps.index'));
@@ -142,3 +142,19 @@ test('staff can delete a camp, along with its registrations', function () {
     $this->assertModelMissing($camp);
     expect(CampRegistration::count())->toBe(0);
 });
+
+test('a camp with paid or held registrations cannot be deleted', function (Closure $makeRegistration) {
+    $camp = Camp::factory()->create();
+    $registration = $makeRegistration(CampRegistration::factory()->for($camp))->create();
+
+    $this->actingAs($this->staff)
+        ->from(route('admin.camps.edit', $camp))
+        ->delete(route('admin.camps.destroy', $camp))
+        ->assertRedirect(route('admin.camps.edit', $camp));
+
+    $this->assertModelExists($camp);
+    $this->assertModelExists($registration);
+})->with([
+    'paid' => [fn ($factory) => $factory],
+    'held for payment' => [fn ($factory) => $factory->pending()],
+]);

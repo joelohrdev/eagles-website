@@ -79,6 +79,9 @@ function validCampRegistration(Camp $camp, array $overrides = []): array
  */
 function thanksgivingCamp(?int $olderCapacity = null): array
 {
+    /** The schedule is fixed to Thanksgiving 2026, and past days can't be booked, so pin the clock before it. */
+    test()->travelTo('2026-11-14 12:00:00');
+
     $camp = Camp::factory()->withoutSchedule()->create(['name' => 'Thanksgiving Camp', 'price' => 7500, 'bundle_price' => 22500, 'capacity' => null]);
     $young = CampAgeGroup::factory()->for($camp)->create(['name' => '8–12U']);
     $older = CampAgeGroup::factory()->for($camp)->create(['name' => '13–17U', 'capacity' => $olderCapacity]);
