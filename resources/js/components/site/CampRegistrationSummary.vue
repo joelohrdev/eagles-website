@@ -74,11 +74,12 @@ defineProps<{
                 <dd>{{ money(line.price) }}</dd>
             </div>
             <div
-                v-if="quote.discount > 0"
+                v-for="discount in quote.discounts"
+                :key="discount.label"
                 class="flex justify-between gap-3 text-sky-dark"
             >
-                <dt>{{ quote.discount_label }}</dt>
-                <dd>−{{ money(quote.discount) }}</dd>
+                <dt>{{ discount.label }}</dt>
+                <dd>−{{ money(discount.amount) }}</dd>
             </div>
         </dl>
         <p v-else class="mt-4 border-t pt-4 text-sm text-muted-foreground">

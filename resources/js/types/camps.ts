@@ -62,6 +62,7 @@ export type CampQuote = {
         price: number;
     }[];
     subtotal: number;
+    discounts: { label: string; amount: number }[];
     discount: number;
     discount_label: string | null;
     coupon_code: string | null;

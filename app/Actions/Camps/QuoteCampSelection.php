@@ -38,17 +38,15 @@ class QuoteCampSelection
         $this->ensureRoom($camp, $lines, $ageGroup);
 
         $subtotal = array_sum(array_map(fn (CampQuoteLine $line): int => $line->price, $lines));
+        $bundleDiscount = $this->bundleDiscount($camp, $lines, $subtotal);
         $coupon = $this->resolveCoupon->handle($couponCode, OrderType::Camp, $camp, $lockCoupon);
 
         return new CampQuote(
             lines: $lines,
             subtotal: $subtotal,
-            bundleDiscount: $this->bundleDiscount($camp, $lines, $subtotal),
+            bundleDiscount: $bundleDiscount,
             coupon: $coupon,
-            couponDiscount: $coupon ? CouponCalculator::discount(
-                $coupon,
-                array_map(fn (CampQuoteLine $line): DiscountableLine => new DiscountableLine($line->price), $lines),
-            ) : 0,
+            couponDiscount: $coupon ? CouponCalculator::discount($coupon, $this->discountableLines($lines, $bundleDiscount)) : 0,
         );
     }
 
@@ -118,6 +116,31 @@ class QuoteCampSelection
                 }
             }
         }
+    }
+
+    /**
+     * The lines a coupon is worked out on: each session's price with its share of
+     * the multi-session saving already taken off, so the coupon comes off the
+     * bundled price instead of the full one.
+     *
+     * @param  list<CampQuoteLine>  $lines
+     * @return list<DiscountableLine>
+     */
+    private function discountableLines(array $lines, int $bundleDiscount): array
+    {
+        $subtotal = array_sum(array_map(fn (CampQuoteLine $line): int => $line->price, $lines));
+        $remainingDiscount = $bundleDiscount;
+        $discountable = [];
+
+        foreach ($lines as $index => $line) {
+            $share = $index === count($lines) - 1 || $subtotal === 0
+                ? $remainingDiscount
+                : intdiv($bundleDiscount * $line->price, $subtotal);
+            $remainingDiscount -= $share;
+            $discountable[] = new DiscountableLine(max(0, $line->price - $share));
+        }
+
+        return $discountable;
     }
 
     /**

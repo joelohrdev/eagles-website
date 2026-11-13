@@ -306,7 +306,7 @@ test('staff can try the registration form on a draft and get live totals', funct
         'days' => $camp->days()->pluck('camp_session_days.id')->all(),
         'camp_age_group_id' => $young->id,
         'coupon_code' => 'thanks30',
-    ])->assertOk()->assertJson(['subtotal' => 25000, 'discount' => 5000, 'total' => 20000]);
+    ])->assertOk()->assertJson(['subtotal' => 25000, 'discount' => 7500, 'total' => 17500]);
 
     expect(Order::count())->toBe(0)
         ->and(CampRegistration::count())->toBe(0);

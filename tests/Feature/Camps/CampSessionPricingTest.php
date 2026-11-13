@@ -34,26 +34,30 @@ test('both sessions use the multi-session price', function () {
         ->assertJson(['subtotal' => 25000, 'discount' => 2500, 'discount_label' => 'Multi-session price', 'total' => 22500]);
 });
 
-test('the Eagles code takes $25 off each session instead of the multi-session price', function (bool $both, int $total) {
+test('the Eagles code takes $25 off each session on top of the multi-session price', function (bool $both, array $discounts, int $total) {
     ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
     eaglesCoupon();
 
     quote($camp, ['days' => dayIdsOf($both ? [$pitching, $fielding] : [$pitching]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'thanks30'])
         ->assertOk()
-        ->assertJson(['discount_label' => 'THANKS30', 'coupon_code' => 'THANKS30', 'total' => $total]);
+        ->assertJson(['coupon_code' => 'THANKS30', 'discounts' => $discounts, 'total' => $total]);
 })->with([
-    'one session' => [false, 10000],
-    'both sessions' => [true, 20000],
+    'one session' => [false, [['label' => 'THANKS30', 'amount' => 2500]], 10000],
+    'both sessions' => [true, [['label' => 'Multi-session price', 'amount' => 2500], ['label' => 'THANKS30', 'amount' => 5000]], 17500],
 ]);
 
-test('a code worth less than the multi-session price is not applied', function () {
+test('a percent code comes off the multi-session price, not the full price', function () {
     ['camp' => $camp, 'young' => $young, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
-    Coupon::factory()->percent(5)->create(['code' => 'SMALL']);
+    Coupon::factory()->percent(10)->create(['code' => 'TEN']);
 
-    quote($camp, ['days' => dayIdsOf([$pitching, $fielding]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'SMALL'])
+    quote($camp, ['days' => dayIdsOf([$pitching, $fielding]), 'camp_age_group_id' => $young->id, 'coupon_code' => 'TEN'])
         ->assertOk()
-        ->assertJson(['discount_label' => 'Multi-session price', 'coupon_code' => null, 'total' => 22500])
-        ->assertJsonPath('coupon_note', fn (?string $note) => $note !== null);
+        ->assertJson([
+            'discounts' => [['label' => 'Multi-session price', 'amount' => 2500], ['label' => 'TEN', 'amount' => 2250]],
+            'discount_label' => 'Multi-session price + TEN',
+            'coupon_note' => null,
+            'total' => 20250,
+        ]);
 });
 
 test('single days use the day price, and only where the session offers it', function () {
@@ -128,10 +132,10 @@ test('registering with the Eagles code records the sessions, days, age group and
 
     expect($order->type)->toBe(OrderType::Camp)
         ->and($order->subtotal)->toBe(25000)
-        ->and($order->discount)->toBe(5000)
-        ->and($order->total)->toBe(20000)
+        ->and($order->discount)->toBe(7500)
+        ->and($order->total)->toBe(17500)
         ->and($order->coupon_id)->toBe($coupon->id)
-        ->and($order->coupon_code)->toBe('THANKS30')
+        ->and($order->coupon_code)->toBe('Multi-session price + THANKS30')
         ->and($order->items->pluck('unit_price')->all())->toBe([12500, 12500])
         ->and($order->items->first()->description)->toBe('Pitching — Sat, Nov 21 & Mon, Nov 23 — Jamie Rivera')
         ->and($registration->camp_age_group_id)->toBe($older->id)
