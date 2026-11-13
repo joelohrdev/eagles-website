@@ -23,6 +23,8 @@ import type { AdminCampRow } from '@/types/camps';
 
 defineProps<{
     camps: Paginated<AdminCampRow>;
+    showArchived: boolean;
+    archivedCount: number;
 }>();
 
 defineOptions({
@@ -46,8 +48,40 @@ defineOptions({
             </Button>
         </div>
 
+        <nav
+            v-if="archivedCount > 0 || showArchived"
+            class="mb-4 flex gap-1 text-sm"
+            aria-label="Camp lists"
+        >
+            <Link
+                :href="index()"
+                class="rounded-md px-3 py-1.5"
+                :class="
+                    showArchived
+                        ? 'text-muted-foreground hover:bg-muted'
+                        : 'bg-muted font-medium'
+                "
+                >Active</Link
+            >
+            <Link
+                :href="index({ query: { archived: 1 } })"
+                class="rounded-md px-3 py-1.5"
+                :class="
+                    showArchived
+                        ? 'bg-muted font-medium'
+                        : 'text-muted-foreground hover:bg-muted'
+                "
+                >Archived ({{ archivedCount }})</Link
+            >
+        </nav>
+
         <EmptyState
-            v-if="camps.data.length === 0"
+            v-if="camps.data.length === 0 && showArchived"
+            title="No archived camps"
+            description="Archived camps are kept with their registrations but hidden from the site."
+        />
+        <EmptyState
+            v-else-if="camps.data.length === 0"
             title="No camps yet"
             description="Create your first camp or clinic. You can save it as a draft and publish when ready."
         >
@@ -144,9 +178,11 @@ defineOptions({
                             <TableCell>
                                 <StatusBadge
                                     :status="
-                                        camp.is_published
-                                            ? 'published'
-                                            : 'draft'
+                                        camp.archived_at
+                                            ? 'archived'
+                                            : camp.is_published
+                                              ? 'published'
+                                              : 'draft'
                                     "
                                 />
                             </TableCell>
@@ -179,10 +215,11 @@ defineOptions({
                                         /></Link>
                                     </Button>
                                     <ConfirmDelete
+                                        v-if="camp.can_delete"
                                         :href="destroy(camp.slug)"
                                         size="icon-sm"
                                         title="Delete this camp?"
-                                        description="All registrations for this camp will also be deleted."
+                                        description="Nobody has registered, so nothing else is lost. This cannot be undone."
                                     />
                                 </div>
                             </TableCell>

@@ -26,9 +26,12 @@ class CampPreviewAccess
             && hash_equals($this->fingerprint($camp), (string) $request->session()->get(self::SESSION_KEY.'.'.$camp->id, ''));
     }
 
+    /**
+     * An archived camp is kept for staff only, so its share passcode stops working.
+     */
     public function hasPasscode(Camp $camp): bool
     {
-        return filled($camp->preview_passcode);
+        return ! $camp->isArchived() && filled($camp->preview_passcode);
     }
 
     /**

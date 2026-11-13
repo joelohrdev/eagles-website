@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, setLayoutProps } from '@inertiajs/vue3';
-import { ExternalLink, Eye, Users } from '@lucide/vue';
+import { Archive, ArchiveRestore, ExternalLink, Eye, Users } from '@lucide/vue';
 import ConfirmDelete from '@/components/admin/ConfirmDelete.vue';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
-import { destroy, edit, index } from '@/routes/admin/camps';
+import { formatDateTime } from '@/lib/format';
+import { archive, destroy, edit, index, unarchive } from '@/routes/admin/camps';
 import { index as registrationsIndex } from '@/routes/admin/camps/registrations';
 import type { AdminCamp, CampSeo } from '@/types/camps';
 import CampForm from './CampForm.vue';
@@ -54,13 +55,43 @@ setLayoutProps({
                 </Button>
             </div>
         </div>
+        <div
+            v-if="camp.archived_at"
+            class="mb-6 flex max-w-4xl flex-wrap items-center justify-between gap-3 rounded-md border border-dashed p-4"
+        >
+            <p class="text-sm">
+                <span class="font-medium">Archived</span>
+                {{ formatDateTime(camp.archived_at) }}. It’s hidden from the
+                site and kept with its registrations. Unarchive it to publish it
+                again.
+            </p>
+            <Button as-child variant="outline" size="sm">
+                <Link :href="unarchive(camp.slug)" method="delete" as="button"
+                    ><ArchiveRestore class="size-4" /> Unarchive</Link
+                >
+            </Button>
+        </div>
         <div class="max-w-4xl">
             <CampForm :camp="camp" :seo="seo">
                 <template #actions>
+                    <Button
+                        v-if="!camp.archived_at"
+                        as-child
+                        variant="outline"
+                        size="sm"
+                    >
+                        <Link
+                            :href="archive(camp.slug)"
+                            method="post"
+                            as="button"
+                            ><Archive class="size-4" /> Archive</Link
+                        >
+                    </Button>
                     <ConfirmDelete
+                        v-if="camp.can_delete"
                         :href="destroy(camp.slug)"
                         title="Delete this camp?"
-                        description="All registrations for this camp will also be deleted. This cannot be undone."
+                        description="Nobody has registered, so nothing else is lost. This cannot be undone."
                     />
                 </template>
             </CampForm>

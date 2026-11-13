@@ -38,6 +38,7 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $image_path
  * @property string|null $youtube_url
  * @property bool $is_published
+ * @property Carbon|null $archived_at Set when staff archive the camp: hidden from the site and the main admin list, kept with its registrations.
  * @property string|null $preview_passcode 4 digits that unlock the preview without logging in (stored encrypted).
  * @property int|null $active_registrations_count
  */
@@ -92,6 +93,7 @@ class Camp extends Model
             'bundle_price' => 'integer',
             'capacity' => 'integer',
             'is_published' => 'boolean',
+            'archived_at' => 'datetime',
             'preview_passcode' => 'encrypted',
         ];
     }
@@ -318,6 +320,11 @@ class Camp extends Model
     public function activeRegistrations(): HasMany
     {
         return $this->registrations()->countsAgainstCapacity();
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 
     /**

@@ -132,18 +132,16 @@ test('staff can update a camp and remove its image', function () {
     Storage::disk('public')->assertMissing('camps/thumbs/old.webp');
 });
 
-test('staff can delete a camp, along with its cancelled registrations', function () {
+test('staff can delete a camp nobody registered for', function () {
     $camp = Camp::factory()->create();
-    CampRegistration::factory()->for($camp)->cancelled()->create();
 
     $this->actingAs($this->staff)->delete(route('admin.camps.destroy', $camp))
         ->assertRedirect(route('admin.camps.index'));
 
     $this->assertModelMissing($camp);
-    expect(CampRegistration::count())->toBe(0);
 });
 
-test('a camp with paid or held registrations cannot be deleted', function (Closure $makeRegistration) {
+test('a camp with any registration cannot be deleted, so its records are kept', function (Closure $makeRegistration) {
     $camp = Camp::factory()->create();
     $registration = $makeRegistration(CampRegistration::factory()->for($camp))->create();
 
@@ -157,4 +155,50 @@ test('a camp with paid or held registrations cannot be deleted', function (Closu
 })->with([
     'paid' => [fn ($factory) => $factory],
     'held for payment' => [fn ($factory) => $factory->pending()],
+    'cancelled' => [fn ($factory) => $factory->cancelled()],
 ]);
+
+test('archiving a camp takes it off the site and the main list, keeping its registrations', function () {
+    $camp = Camp::factory()->create(['name' => 'Old Camp']);
+    $registration = CampRegistration::factory()->for($camp)->create();
+
+    $this->actingAs($this->staff)->post(route('admin.camps.archive', $camp))
+        ->assertRedirect(route('admin.camps.index'));
+
+    expect($camp->refresh()->archived_at)->not->toBeNull()
+        ->and($camp->is_published)->toBeFalse();
+    $this->assertModelExists($registration);
+    $this->get(route('camps.show', $camp))->assertNotFound();
+
+    $this->actingAs($this->staff)->get(route('admin.camps.index'))
+        ->assertInertia(fn ($page) => $page->has('camps.data', 0)->where('archivedCount', 1));
+    $this->actingAs($this->staff)->get(route('admin.camps.index', ['archived' => 1]))
+        ->assertInertia(fn ($page) => $page->has('camps.data', 1)->where('camps.data.0.name', 'Old Camp'));
+    $this->actingAs($this->staff)->get(route('admin.camps.registrations.index', $camp))->assertOk();
+});
+
+test('a camp cannot be archived while a family is part-way through paying', function () {
+    $camp = Camp::factory()->create();
+    CampRegistration::factory()->for($camp)->pending()->create();
+
+    $this->actingAs($this->staff)->post(route('admin.camps.archive', $camp));
+
+    expect($camp->refresh()->archived_at)->toBeNull();
+});
+
+test('an archived camp comes back as a draft and stays unpublished until unarchived', function () {
+    $camp = Camp::factory()->create(['archived_at' => now(), 'is_published' => false]);
+
+    $this->actingAs($this->staff)->put(route('admin.camps.update', $camp), [
+        'name' => $camp->name,
+        'is_published' => 1,
+        'sessions' => [['name' => 'Main', 'price' => '100', 'days' => [['date' => now()->addMonth()->toDateString(), 'times' => [['starts_at' => '09:00', 'ends_at' => '12:00']]]]]],
+    ])->assertSessionHasNoErrors();
+    expect($camp->refresh()->is_published)->toBeFalse();
+
+    $this->actingAs($this->staff)->delete(route('admin.camps.unarchive', $camp))
+        ->assertRedirect(route('admin.camps.edit', $camp));
+
+    expect($camp->refresh()->archived_at)->toBeNull()
+        ->and($camp->is_published)->toBeFalse();
+});

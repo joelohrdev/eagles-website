@@ -85,6 +85,8 @@ export type AdminCampRow = {
     active_registrations_count: number;
     registration_state: RegistrationState | 'draft';
     spots_remaining: number | null;
+    archived_at: string | null;
+    can_delete: boolean;
 };
 
 export type CampScheduleForm = {
@@ -139,6 +141,8 @@ export type AdminCamp = {
     public_url: string;
     preview_url: string;
     preview_passcode: string | null;
+    archived_at: string | null;
+    can_delete: boolean;
 };
 
 export type AdminCampRegistration = {

@@ -47,6 +47,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('facility-photos/reorder', [FacilityPhotoController::class, 'reorder'])->name('facility-photos.reorder');
 
     Route::resource('camps', CampController::class)->except(['show']);
+    Route::post('camps/{camp}/archive', [CampController::class, 'archive'])->name('camps.archive');
+    Route::delete('camps/{camp}/archive', [CampController::class, 'unarchive'])->name('camps.unarchive');
     Route::get('camps/{camp}/registrations', [CampRegistrationController::class, 'index'])->name('camps.registrations.index');
     Route::get('camps/{camp}/registrations/export', [CampRegistrationController::class, 'export'])->name('camps.registrations.export');
     Route::get('camps/{camp}/registrations/roster', [CampRegistrationController::class, 'roster'])->name('camps.registrations.roster');

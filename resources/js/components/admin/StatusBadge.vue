@@ -25,6 +25,7 @@ const variant = computed(() => {
         case 'full':
         case 'inactive':
         case 'draft':
+        case 'archived':
             return 'outline';
         default:
             return 'secondary';

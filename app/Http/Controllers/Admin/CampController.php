@@ -13,11 +13,13 @@ use App\Models\Camp;
 use App\Models\CampAgeGroup;
 use App\Models\CampCoach;
 use App\Models\CampDayTime;
+use App\Models\CampRegistration;
 use App\Models\CampSession;
 use App\Models\CampSessionDay;
 use App\Services\ActivityLogger;
 use App\Services\ImageUploader;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,11 +35,15 @@ class CampController extends Controller
         private ActivityLogger $activity,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $showArchived = $request->boolean('archived');
+
         $camps = Camp::query()
+            ->when($showArchived, fn ($query) => $query->whereNotNull('archived_at'), fn ($query) => $query->whereNull('archived_at'))
             ->with(['ageGroups', 'sessions.days.times'])
             ->withCount([
+                'registrations',
                 'registrations as paid_registrations_count' => fn ($query) => $query->paid(),
                 'registrations as active_registrations_count' => fn ($query) => $query->countsAgainstCapacity(),
             ])
@@ -52,10 +58,14 @@ class CampController extends Controller
                 ...$camp->only(['id', 'name', 'slug', 'location', 'starts_at', 'ends_at', 'price', 'capacity', 'is_published', 'image_thumbnail_url', 'paid_registrations_count', 'active_registrations_count']),
                 'registration_state' => $camp->is_published ? $camp->registrationState() : 'draft',
                 'spots_remaining' => $camp->spotsRemaining(),
+                'archived_at' => $camp->archived_at?->toIso8601String(),
+                'can_delete' => $camp->registrations_count === 0,
             ]);
 
         return Inertia::render('admin/camps/Index', [
             'camps' => $camps,
+            'showArchived' => $showArchived,
+            'archivedCount' => Camp::query()->whereNotNull('archived_at')->count(),
         ]);
     }
 
@@ -105,6 +115,8 @@ class CampController extends Controller
                 'public_url' => route('camps.show', $camp),
                 'preview_url' => route('camps.preview', $camp),
                 'preview_passcode' => $camp->preview_passcode,
+                'archived_at' => $camp->archived_at?->toIso8601String(),
+                'can_delete' => ! $camp->registrations()->exists(),
             ],
             'seo' => $camp->seoMeta,
         ]);
@@ -153,6 +165,11 @@ class CampController extends Controller
     public function update(UpdateCampRequest $request, Camp $camp): RedirectResponse
     {
         $attributes = $request->campAttributes();
+
+        if ($camp->isArchived()) {
+            /** Unarchive first; an archived camp is never public. */
+            $attributes['is_published'] = false;
+        }
 
         $oldImagePath = $camp->image_path;
         $newImagePath = null;
@@ -217,18 +234,52 @@ class CampController extends Controller
         return to_route('admin.camps.edit', $camp);
     }
 
+    /**
+     * Archive a camp: take it off the site and out of the main list, keeping
+     * everything about it. Not while a family is part-way through paying.
+     */
+    public function archive(Camp $camp): RedirectResponse
+    {
+        $holds = $camp->registrations()->countsAgainstCapacity()->where('status', RegistrationStatus::PendingPayment)->count();
+
+        if ($holds > 0) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => trans_choice(
+                'A family is part-way through paying for this camp. Try again once their hold ends (up to :minutes minutes).|:count families are part-way through paying for this camp. Try again once their holds end (up to :minutes minutes).',
+                $holds,
+                ['minutes' => CampRegistration::PENDING_HOLD_MINUTES],
+            )]);
+
+            return back();
+        }
+
+        $camp->forceFill(['archived_at' => now(), 'is_published' => false])->save();
+
+        $this->activity->log('camp.archived', "Camp {$camp->name} archived", $camp);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Camp archived. Find it under Archived on the camps list.')]);
+
+        return to_route('admin.camps.index');
+    }
+
+    /**
+     * Bring an archived camp back as a draft; publishing it again is a separate step.
+     */
+    public function unarchive(Camp $camp): RedirectResponse
+    {
+        $camp->forceFill(['archived_at' => null])->save();
+
+        $this->activity->log('camp.unarchived', "Camp {$camp->name} unarchived", $camp);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Camp unarchived as a draft.')]);
+
+        return to_route('admin.camps.edit', $camp);
+    }
+
     public function destroy(Camp $camp): RedirectResponse
     {
-        /** Paid and held registrations carry money and spots; deleting them would orphan their orders. */
-        $active = $camp->registrations()
-            ->whereIn('status', [RegistrationStatus::Paid, RegistrationStatus::PendingPayment])
-            ->count();
-
-        if ($active > 0) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => trans_choice(
-                'This camp has :count registered player. Cancel or refund it first, or move the camp to drafts instead.|This camp has :count registered players. Cancel or refund them first, or move the camp to drafts instead.',
-                $active,
-            )]);
+        /** Only a camp nobody ever registered for can be deleted; anything else is archived, so its registrations and orders stay on record. */
+        if ($camp->registrations()->exists()) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('This camp has registrations, so it can’t be deleted. Archive it instead.')]);
 
             return back();
         }
@@ -241,13 +292,9 @@ class CampController extends Controller
 
         $this->syncCampCoaches->delete($camp->coaches()->get());
 
-        $this->activity->log('camp.deleted', "Camp {$camp->name} deleted", $camp, [
-            'registrations_deleted' => $camp->registrations()->count(),
-        ]);
+        $this->activity->log('camp.deleted', "Camp {$camp->name} deleted", $camp);
 
         DB::transaction(function () use ($camp): void {
-            /** Registrations go first: their booked days block deleting the camp's schedule. */
-            $camp->registrations()->delete();
             $camp->delete();
         });
 

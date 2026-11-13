@@ -97,3 +97,12 @@ test('signed-in staff skip the passcode and get an edit link', function () {
             ->component('site/Camps/Show')
             ->where('preview.edit_url', route('admin.camps.edit', $camp)));
 });
+
+test('an archived camp’s passcode no longer opens its preview', function () {
+    $camp = Camp::factory()->unpublished()->create(['preview_passcode' => '0427']);
+    $this->post(route('camps.preview.unlock', $camp), ['passcode' => '0427']);
+
+    $camp->forceFill(['archived_at' => now()])->save();
+
+    $this->get(route('camps.preview', $camp))->assertRedirect(route('login'));
+});
