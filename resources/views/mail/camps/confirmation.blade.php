@@ -25,9 +25,11 @@ Hi {{ $registration->parent_name }},
 @endif
 @if ($camp->address)
 {{ $camp->address }}<br>
+@endif
 @if ($camp->address_details)
 {{ $camp->address_details }}<br>
 @endif
+@if ($camp->address)
 [Get directions]({{ $camp->mapUrl() }})
 @endif
 
