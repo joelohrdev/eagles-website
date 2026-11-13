@@ -46,6 +46,7 @@ class CampRegistrationController extends Controller
                 'discount_label' => $registration->order?->discount > 0 ? $registration->order->coupon_code : null,
                 'discount' => $registration->order->discount ?? 0,
                 'refunded_amount' => $registration->order->refunded_amount ?? 0,
+                'amount_kept' => $registration->order?->amountKept() ?? 0,
                 'day_ids' => $registration->days->pluck('id')->all(),
             ]);
 
@@ -235,6 +236,21 @@ class CampRegistrationController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => $request->refundCents() > 0
             ? __(':player’s days were updated and $:amount was refunded. The family has been emailed.', ['player' => $registration->playerName(), 'amount' => number_format($request->refundCents() / 100, 2)])
             : __(':player’s days were updated. The family has been emailed.', ['player' => $registration->playerName()])]);
+
+        return back();
+    }
+
+    /**
+     * Cancel a paid registration and refund everything still kept, through Stripe.
+     */
+    public function cancelAndRefund(Camp $camp, CampRegistration $registration, DropCampDays $dropCampDays): RedirectResponse
+    {
+        $refund = $registration->order?->amountKept() ?? 0;
+        $dropCampDays->cancelAndRefund($registration);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $refund > 0
+            ? __(':player’s registration was cancelled and $:amount refunded. The family has been emailed.', ['player' => $registration->playerName(), 'amount' => number_format($refund / 100, 2)])
+            : __(':player’s registration was cancelled.', ['player' => $registration->playerName()])]);
 
         return back();
     }

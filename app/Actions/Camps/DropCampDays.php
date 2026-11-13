@@ -2,6 +2,7 @@
 
 namespace App\Actions\Camps;
 
+use App\Actions\Orders\RefundOrder;
 use App\Contracts\PaymentGateway;
 use App\Enums\RegistrationStatus;
 use App\Mail\CampRegistrationChanged;
@@ -25,7 +26,55 @@ class DropCampDays
         private QuoteCampSelection $quoteCampSelection,
         private PaymentGateway $gateway,
         private ActivityLogger $activity,
+        private RefundOrder $refundOrder,
     ) {}
+
+    /**
+     * Cancel a paid registration outright and refund everything not already
+     * given back. The Stripe refund goes first: if it's turned down nothing
+     * changes, and if it goes through, the order and registration are marked
+     * refunded (Stripe's refund webhook would do the same, so a hiccup after
+     * the refund still ends in the right state). A free sign-up is just cancelled.
+     *
+     * @throws ValidationException when the registration isn't paid, or Stripe turns the refund down.
+     */
+    public function cancelAndRefund(CampRegistration $registration): CampRegistration
+    {
+        if ($registration->status !== RegistrationStatus::Paid) {
+            throw ValidationException::withMessages(['registration' => __('Only a paid registration can be cancelled and refunded.')]);
+        }
+
+        $order = $registration->order;
+
+        if ($order === null || $order->amountKept() === 0) {
+            $registration->forceFill(['status' => RegistrationStatus::Cancelled])->save();
+            $this->activity->log('camp_registration.cancelled', "{$registration->playerName()}'s registration cancelled by staff", $registration, [
+                'player' => $registration->playerName(),
+            ]);
+
+            return $registration;
+        }
+
+        DB::transaction(function () use ($order): void {
+            $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if (! $locked->isPaid() || $locked->amountKept() === 0) {
+                throw ValidationException::withMessages(['registration' => __('This order has already been refunded.')]);
+            }
+
+            try {
+                $this->gateway->refund($locked, $locked->amountKept());
+            } catch (Throwable $e) {
+                report($e);
+
+                throw ValidationException::withMessages(['registration' => __('Stripe didn’t make the refund, so nothing was changed: :reason', ['reason' => $e->getMessage()])]);
+            }
+
+            $this->refundOrder->handle($locked);
+        });
+
+        return $registration->refresh();
+    }
 
     /**
      * @param  list<int>  $dropDayIds

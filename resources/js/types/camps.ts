@@ -166,6 +166,7 @@ export type AdminCampRegistration = {
     discount_label: string | null;
     discount: number;
     refunded_amount: number;
+    amount_kept: number;
     day_ids: number[];
     registered_at: string;
     expires_at: string | null;

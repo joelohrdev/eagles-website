@@ -83,6 +83,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('camps/{camp}/registrations/{registration}/drop-days', [CampRegistrationController::class, 'dropDays'])
             ->scopeBindings()
             ->name('camps.registrations.drop-days');
+        Route::post('camps/{camp}/registrations/{registration}/cancel-and-refund', [CampRegistrationController::class, 'cancelAndRefund'])
+            ->scopeBindings()
+            ->name('camps.registrations.cancel-and-refund');
 
         Route::get('settings/{group}', [SiteSettingController::class, 'edit'])
             ->whereIn('group', ['organization', 'home', 'facility', 'contact', 'pages', 'seo'])

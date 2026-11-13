@@ -414,12 +414,12 @@ const rosterUrl = () => roster(props.camp.slug, { query: filterQuery() }).url;
                                 <DropDaysDialog
                                     v-if="
                                         canRefund &&
-                                        registration.status === 'paid' &&
-                                        registration.day_ids.length > 1
+                                        registration.status === 'paid'
                                     "
                                     :camp-slug="camp.slug"
                                     :registration-id="registration.id"
                                     :player-name="registration.player_name"
+                                    :amount-kept="registration.amount_kept"
                                     :days="
                                         days.filter((day) =>
                                             registration.day_ids.includes(

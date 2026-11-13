@@ -30,7 +30,7 @@ class RefundOrder
         }
 
         DB::transaction(function () use ($order): void {
-            $order->forceFill(['status' => OrderStatus::Refunded])->save();
+            $order->forceFill(['status' => OrderStatus::Refunded, 'refunded_amount' => $order->total])->save();
 
             if ($order->type === OrderType::Camp) {
                 $order->campRegistration?->forceFill(['status' => RegistrationStatus::Refunded])->save();

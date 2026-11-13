@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { money } from '@/lib/format';
-import { dropDays } from '@/routes/admin/camps/registrations';
+import { cancelAndRefund, dropDays } from '@/routes/admin/camps/registrations';
 import { preview as previewDropDays } from '@/routes/admin/camps/registrations/drop-days';
 
 type DropPreview = {
@@ -34,7 +34,11 @@ const props = defineProps<{
     playerName: string;
     /** The days this player is booked on, with their labels. */
     days: { id: number; label: string }[];
+    /** Cents paid and not yet refunded. */
+    amountKept: number;
 }>();
+
+const confirmingCancel = ref(false);
 
 const open = ref(false);
 const dropped = ref<number[]>([]);
@@ -90,8 +94,23 @@ watch(open, (isOpen) => {
         refund.value = '';
         preview.value = null;
         errors.value = {};
+        confirmingCancel.value = false;
     }
 });
+
+function cancelAll() {
+    router.post(
+        cancelAndRefund.url(args.value),
+        {},
+        {
+            preserveScroll: true,
+            onStart: () => (submitting.value = true),
+            onFinish: () => (submitting.value = false),
+            onSuccess: () => (open.value = false),
+            onError: (formErrors) => (errors.value = formErrors),
+        },
+    );
+}
 
 function confirm() {
     router.post(
@@ -114,22 +133,24 @@ function confirm() {
             <Button
                 variant="ghost"
                 size="icon-sm"
-                :aria-label="`Drop days and refund for ${playerName}`"
-                title="Drop days and refund"
+                :aria-label="`Change or cancel ${playerName}’s registration`"
+                title="Change or cancel"
                 ><CalendarMinus class="size-4"
             /></Button>
         </DialogTrigger>
         <DialogContent class="sm:max-w-lg">
             <DialogHeader>
-                <DialogTitle>Drop days for {{ playerName }}</DialogTitle>
+                <DialogTitle>Change or cancel: {{ playerName }}</DialogTitle>
                 <DialogDescription>
-                    Tick the days they can’t make. They’re taken off the roster,
-                    the spots open up, and the family is emailed.
+                    Changes come off the roster, the spots open up, and the
+                    family is emailed.
                 </DialogDescription>
             </DialogHeader>
 
-            <fieldset class="space-y-2">
-                <legend class="sr-only">Days to drop</legend>
+            <fieldset v-if="days.length > 1" class="space-y-2">
+                <legend class="mb-1 text-sm font-medium">
+                    Drop days they can’t make
+                </legend>
                 <label
                     v-for="day in days"
                     :key="day.id"
@@ -178,8 +199,50 @@ function confirm() {
                 </div>
             </div>
 
-            <DialogFooter>
-                <Button variant="outline" @click="open = false">Cancel</Button>
+            <section class="space-y-2 border-t pt-4">
+                <p class="text-sm font-medium">Can’t come at all?</p>
+                <p class="text-xs text-muted-foreground">
+                    Cancels the whole registration{{
+                        amountKept > 0
+                            ? ` and refunds ${money(amountKept)} through Stripe`
+                            : ''
+                    }}.
+                </p>
+                <Button
+                    v-if="!confirmingCancel"
+                    variant="outline"
+                    size="sm"
+                    @click="confirmingCancel = true"
+                    >{{
+                        amountKept > 0
+                            ? 'Cancel and refund in full'
+                            : 'Cancel registration'
+                    }}</Button
+                >
+                <div v-else class="flex flex-wrap gap-2">
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        :disabled="submitting"
+                        @click="cancelAll"
+                        >{{
+                            amountKept > 0
+                                ? `Yes, cancel and refund ${money(amountKept)}`
+                                : 'Yes, cancel it'
+                        }}</Button
+                    >
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        @click="confirmingCancel = false"
+                        >Keep the registration</Button
+                    >
+                </div>
+                <InputError :message="errors.registration" />
+            </section>
+
+            <DialogFooter v-if="days.length > 1">
+                <Button variant="outline" @click="open = false">Close</Button>
                 <Button :disabled="!preview || submitting" @click="confirm">{{
                     Number(refund) > 0
                         ? `Drop days and refund ${money(Math.round(Number(refund) * 100))}`

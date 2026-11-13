@@ -2,7 +2,11 @@
 
 use App\Actions\Orders\MarkOrderPaid;
 use App\Contracts\PaymentGateway;
+use App\Enums\OrderStatus;
+use App\Enums\RegistrationStatus;
 use App\Mail\CampRegistrationChanged;
+use App\Mail\OrderRefunded;
+use App\Models\Camp;
 use App\Models\CampRegistration;
 use App\Models\CampSession;
 use App\Models\Coupon;
@@ -128,4 +132,60 @@ test('a partial refund made in the Stripe dashboard is recorded on the order', f
 
     expect($order->refresh()->refunded_amount)->toBe(5000)
         ->and($order->status->value)->toBe('paid');
+});
+
+test('cancelling in full refunds what was paid and marks the order and registration refunded', function () {
+    Mail::fake();
+    ['registration' => $registration, 'order' => $order] = paidForBothSessions();
+
+    $this->actingAs($this->admin)->post(dropDaysUrl($registration, 'admin.camps.registrations.cancel-and-refund'))
+        ->assertSessionHasNoErrors();
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded)
+        ->and($order->refunded_amount)->toBe(22500)
+        ->and($registration->refresh()->status)->toBe(RegistrationStatus::Refunded)
+        ->and(app(PaymentGateway::class)->refunds)->toBe([['order_id' => $order->id, 'amount' => 22500]])
+        ->and(CampRegistration::query()->countsAgainstCapacity()->count())->toBe(0);
+    Mail::assertQueued(OrderRefunded::class);
+});
+
+test('cancelling in full after a partial refund only refunds what is left', function () {
+    Mail::fake();
+    ['registration' => $registration, 'order' => $order, 'fielding' => $fielding] = paidForBothSessions();
+    $this->actingAs($this->admin)->post(dropDaysUrl($registration), ['days' => dayIdsOf([$fielding]), 'refund' => '100']);
+
+    $this->actingAs($this->admin)->post(dropDaysUrl($registration, 'admin.camps.registrations.cancel-and-refund'));
+
+    expect(array_column(app(PaymentGateway::class)->refunds, 'amount'))->toBe([10000, 12500])
+        ->and($order->refresh()->refunded_amount)->toBe(22500);
+});
+
+test('if Stripe turns down a full refund, the registration stays paid', function () {
+    ['registration' => $registration, 'order' => $order] = paidForBothSessions();
+    app(PaymentGateway::class)->failRefund = true;
+
+    $this->actingAs($this->admin)->post(dropDaysUrl($registration, 'admin.camps.registrations.cancel-and-refund'))
+        ->assertSessionHasErrors('registration');
+
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($registration->refresh()->status)->toBe(RegistrationStatus::Paid);
+});
+
+test('a free registration is simply cancelled', function () {
+    $camp = Camp::factory()->free()->create();
+    $registration = CampRegistration::factory()->for($camp)->create();
+
+    $this->actingAs($this->admin)->post(dropDaysUrl($registration, 'admin.camps.registrations.cancel-and-refund'))
+        ->assertSessionHasNoErrors();
+
+    expect($registration->refresh()->status)->toBe(RegistrationStatus::Cancelled)
+        ->and(app(PaymentGateway::class)->refunds)->toBe([]);
+});
+
+test('only admins can cancel and refund in full', function () {
+    ['registration' => $registration] = paidForBothSessions();
+
+    $this->actingAs(User::factory()->staff()->create())
+        ->post(dropDaysUrl($registration, 'admin.camps.registrations.cancel-and-refund'))
+        ->assertForbidden();
 });
