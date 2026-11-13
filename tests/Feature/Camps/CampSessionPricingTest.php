@@ -212,7 +212,7 @@ test('the receipt lists the booked days at the player’s times and the discount
 test('a paid camp sign-up emails the family their sessions, days and times once payment goes through', function () {
     Mail::fake();
     ['camp' => $camp, 'older' => $older, 'pitching' => $pitching, 'fielding' => $fielding] = thanksgivingCamp();
-    $camp->update(['location' => 'Eagles Training Facility', 'address' => '1234 Main St, Naperville, IL 60540']);
+    $camp->update(['location' => 'Eagles Training Facility', 'address' => '1234 Main St, Naperville, IL 60540', 'address_details' => 'Unit 6, 7, 8']);
 
     $this->post(route('camps.register.store', $camp), validCampRegistration($camp, [
         'days' => dayIdsOf([$pitching, $fielding]),
@@ -230,6 +230,7 @@ test('a paid camp sign-up emails the family their sessions, days and times once 
     (new CampRegistrationConfirmation(CampRegistration::query()->sole()))
         ->assertSeeInOrderInHtml(['13–17U', 'Pitching', 'Sat, Nov 21', '7:00 PM – 8:30 PM', 'Mon, Nov 23', 'Fielding &amp; Hitting', 'Tue, Nov 24 · Fielding', 'Wed, Nov 25 · Hitting'], escape: false)
         ->assertSeeInHtml('1234 Main St, Naperville, IL 60540')
+        ->assertSeeInHtml('Unit 6, 7, 8')
         ->assertSeeInHtml('Get directions')
         ->assertSeeInHtml($order->number)
         ->assertSeeInHtml('$225.00');

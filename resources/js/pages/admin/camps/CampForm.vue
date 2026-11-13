@@ -175,6 +175,27 @@ const seoFallback = computed(() => ({
                     <InputError :message="errors.address" />
                 </div>
 
+                <div class="grid content-start gap-2">
+                    <Label for="address_details"
+                        >Address details
+                        <span class="text-muted-foreground"
+                            >(optional)</span
+                        ></Label
+                    >
+                    <Input
+                        id="address_details"
+                        name="address_details"
+                        :default-value="camp?.address_details ?? ''"
+                        placeholder="Unit 6, 7, 8"
+                        autocomplete="off"
+                    />
+                    <p class="text-xs text-muted-foreground">
+                        Unit, suite or entrance. Shown under the address but
+                        left out of the map link.
+                    </p>
+                    <InputError :message="errors.address_details" />
+                </div>
+
                 <ImageUpload
                     name="image"
                     label="Camp image"

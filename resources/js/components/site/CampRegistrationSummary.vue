@@ -51,6 +51,9 @@ defineProps<{
                     <span v-if="camp.address" class="block text-xs">{{
                         camp.address
                     }}</span>
+                    <span v-if="camp.address_details" class="block text-xs">{{
+                        camp.address_details
+                    }}</span>
                 </span>
             </li>
         </ul>

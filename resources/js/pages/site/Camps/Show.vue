@@ -221,6 +221,12 @@ const registrationNote = computed(() => {
                         >
                             {{ camp.address }}
                         </address>
+                        <p
+                            v-if="camp.address_details"
+                            class="text-sm text-muted-foreground"
+                        >
+                            {{ camp.address_details }}
+                        </p>
                         <a
                             v-if="camp.map_url"
                             :href="camp.map_url"

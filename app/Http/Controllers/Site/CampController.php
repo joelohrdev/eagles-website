@@ -80,7 +80,7 @@ class CampController extends Controller
     public static function presentSummary(Camp $camp): array
     {
         return [
-            ...$camp->only(['id', 'name', 'slug', 'location', 'address', 'age_range', 'starts_at', 'ends_at', 'price', 'capacity', 'image_url', 'image_thumbnail_url']),
+            ...$camp->only(['id', 'name', 'slug', 'location', 'address', 'address_details', 'age_range', 'starts_at', 'ends_at', 'price', 'capacity', 'image_url', 'image_thumbnail_url']),
             'map_url' => $camp->mapUrl(),
             'is_free' => $camp->isFree(),
             'has_pricing_options' => $camp->hasPricingOptions(),

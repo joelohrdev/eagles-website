@@ -6,6 +6,7 @@ export type CampSummary = {
     slug: string;
     location: string | null;
     address: string | null;
+    address_details: string | null;
     map_url: string | null;
     age_range: string | null;
     starts_at: string | null;
@@ -118,6 +119,7 @@ export type AdminCamp = {
     description: string | null;
     location: string | null;
     address: string | null;
+    address_details: string | null;
     age_range: string | null;
     starts_at: string | null;
     ends_at: string | null;

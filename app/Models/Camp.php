@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $description
  * @property string|null $location Place name, e.g. Eagles Training Facility.
  * @property string|null $address Street address, used for map links.
+ * @property string|null $address_details Extra directions such as a unit or door, kept out of map links.
  * @property string|null $age_range
  * @property Carbon|null $starts_at First session start; null for a draft with no dates yet.
  * @property Carbon|null $ends_at
@@ -40,7 +41,7 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $preview_passcode 4 digits that unlock the preview without logging in (stored encrypted).
  * @property int|null $active_registrations_count
  */
-#[Fillable(['name', 'slug', 'description', 'location', 'address', 'age_range', 'starts_at', 'ends_at', 'price', 'bundle_price', 'capacity', 'registration_opens_at', 'registration_closes_at', 'image_path', 'youtube_url', 'is_published', 'preview_passcode'])]
+#[Fillable(['name', 'slug', 'description', 'location', 'address', 'address_details', 'age_range', 'starts_at', 'ends_at', 'price', 'bundle_price', 'capacity', 'registration_opens_at', 'registration_closes_at', 'image_path', 'youtube_url', 'is_published', 'preview_passcode'])]
 class Camp extends Model
 {
     /** @use HasFactory<CampFactory> */

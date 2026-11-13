@@ -91,7 +91,7 @@ class CampController extends Controller
 
         return Inertia::render('admin/camps/Edit', [
             'camp' => [
-                ...$camp->only(['id', 'name', 'slug', 'description', 'location', 'address', 'age_range', 'starts_at', 'ends_at', 'price', 'capacity', 'registration_opens_at', 'registration_closes_at', 'image_url', 'image_thumbnail_url', 'youtube_url', 'is_published']),
+                ...$camp->only(['id', 'name', 'slug', 'description', 'location', 'address', 'address_details', 'age_range', 'starts_at', 'ends_at', 'price', 'capacity', 'registration_opens_at', 'registration_closes_at', 'image_url', 'image_thumbnail_url', 'youtube_url', 'is_published']),
                 'bundle_price_dollars' => self::dollars($camp->bundle_price),
                 'schedule' => self::scheduleForm($camp),
                 'coaches' => $camp->coaches()->get()->map(fn (CampCoach $coach): array => $coach->only(['id', 'name', 'title', 'bio', 'photo_url']))->all(),

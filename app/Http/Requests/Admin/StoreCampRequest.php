@@ -97,6 +97,7 @@ class StoreCampRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:5000'],
             'location' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
+            'address_details' => ['nullable', 'string', 'max:255'],
             'age_range' => ['nullable', 'string', 'max:100'],
             'bundle_price' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:10000'],
@@ -247,7 +248,7 @@ class StoreCampRequest extends FormRequest
     public function campAttributes(): array
     {
         $data = $this->safe()->only([
-            'name', 'description', 'location', 'address', 'age_range',
+            'name', 'description', 'location', 'address', 'address_details', 'age_range',
             'capacity', 'registration_opens_at', 'registration_closes_at', 'youtube_url',
         ]);
 
