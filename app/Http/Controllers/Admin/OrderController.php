@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
+use App\Enums\RegistrationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateOrderRequest;
 use App\Models\ActivityLog;
@@ -13,6 +14,7 @@ use App\Services\StripeSettings;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -82,7 +84,14 @@ class OrderController extends Controller
         }
 
         $from = $order->status;
-        $order->update($attributes);
+
+        DB::transaction(function () use ($order, $attributes): void {
+            $order->update($attributes);
+
+            if ($order->wasChanged('status')) {
+                $this->syncCampRegistration($order);
+            }
+        });
 
         if ($order->wasChanged('status')) {
             $activity->log('order.status_changed', "Order {$order->number} marked {$order->status->label()} (was {$from->label()})", $order, [
@@ -109,5 +118,27 @@ class OrderController extends Controller
         $testMode = app(StripeSettings::class)->isTestMode();
 
         return 'https://dashboard.stripe.com/'.($testMode ? 'test/' : '').'payments/'.$order->stripe_payment_intent_id;
+    }
+
+    /**
+     * Keep a camp order's registration in step with a status set by hand, so a
+     * cancelled or refunded order no longer shows as pending or holds its spot.
+     */
+    private function syncCampRegistration(Order $order): void
+    {
+        if ($order->type !== OrderType::Camp || $order->campRegistration === null) {
+            return;
+        }
+
+        $registrationStatus = match ($order->status) {
+            OrderStatus::Cancelled => RegistrationStatus::Cancelled,
+            OrderStatus::Refunded => RegistrationStatus::Refunded,
+            OrderStatus::Paid, OrderStatus::Fulfilled => RegistrationStatus::Paid,
+            OrderStatus::Pending => null,
+        };
+
+        if ($registrationStatus !== null) {
+            $order->campRegistration->forceFill(['status' => $registrationStatus])->save();
+        }
     }
 }

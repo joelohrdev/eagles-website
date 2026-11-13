@@ -84,3 +84,17 @@ test('a registration cannot be deleted through another camp', function () {
 
     $this->assertModelExists($registration);
 });
+
+test('changing a camp order status in admin updates its registration', function (Closure $makeOrder, Closure $makeRegistration, string $orderStatus, RegistrationStatus $registrationStatus) {
+    $order = $makeOrder();
+    $registration = $makeRegistration(CampRegistration::factory()->for($this->camp))->create(['order_id' => $order->id]);
+
+    $this->actingAs($this->staff)
+        ->put(route('admin.orders.update', $order), ['status' => $orderStatus])
+        ->assertSessionHasNoErrors();
+
+    expect($registration->fresh()->status)->toBe($registrationStatus);
+})->with([
+    'pending order cancelled' => [fn () => Order::factory()->camp()->create(), fn ($factory) => $factory->pending(), 'cancelled', RegistrationStatus::Cancelled],
+    'paid order refunded' => [fn () => Order::factory()->camp()->paid()->create(), fn ($factory) => $factory, 'refunded', RegistrationStatus::Refunded],
+]);
