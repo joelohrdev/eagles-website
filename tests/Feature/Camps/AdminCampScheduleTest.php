@@ -213,7 +213,7 @@ test('publishing with only the empty starter session asks for a session', functi
     ])->assertSessionHasErrors(['sessions' => 'Add at least one session before publishing.']);
 });
 
-test('a camp address is saved and shown with a directions link that leaves out the address details', function () {
+test('a camp address is saved and shown with a directions link to the street address alone', function () {
     $this->actingAs($this->staff)->post(route('admin.camps.store'), thanksgivingCampForm([
         'location' => 'Eagles Training Facility',
         'address' => '1234 Main St, Naperville, IL 60540',
@@ -226,7 +226,7 @@ test('a camp address is saved and shown with a directions link that leaves out t
         ->assertInertia(fn ($page) => $page
             ->where('camp.address', '1234 Main St, Naperville, IL 60540')
             ->where('camp.address_details', 'Unit 6, 7, 8')
-            ->where('camp.map_url', 'https://www.google.com/maps/search/?api=1&query='.rawurlencode('Eagles Training Facility, 1234 Main St, Naperville, IL 60540')));
+            ->where('camp.map_url', 'https://www.google.com/maps/search/?api=1&query='.rawurlencode('1234 Main St, Naperville, IL 60540')));
 });
 
 test('two age groups cannot share a name', function () {

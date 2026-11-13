@@ -264,7 +264,8 @@ class Camp extends Model
     }
 
     /**
-     * A Google Maps search link for the address (with the place name), or null without an address.
+     * A Google Maps search link for the street address alone (no place name or
+     * address details), or null without an address.
      */
     public function mapUrl(): ?string
     {
@@ -272,7 +273,7 @@ class Camp extends Model
             return null;
         }
 
-        return 'https://www.google.com/maps/search/?api=1&query='.rawurlencode(trim(($this->location ? "{$this->location}, " : '').$this->address));
+        return 'https://www.google.com/maps/search/?api=1&query='.rawurlencode(trim($this->address));
     }
 
     public function isFree(): bool
