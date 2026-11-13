@@ -247,7 +247,7 @@ watch(maxQty, (max) => {
                         </div>
                         <Button
                             size="lg"
-                            class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                            class="bg-sky font-semibold text-white hover:bg-sky-dark"
                             :disabled="
                                 processing ||
                                 soldOut ||

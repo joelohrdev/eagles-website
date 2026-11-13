@@ -34,7 +34,7 @@ defineProps<{
             </p>
             <Button
                 as-child
-                class="mt-6 bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                class="mt-6 bg-sky font-semibold text-white hover:bg-sky-dark"
             >
                 <Link :href="contact()">Contact us</Link>
             </Button>

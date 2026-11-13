@@ -333,7 +333,7 @@ const registrationNote = computed(() => {
                     v-if="preview"
                     as-child
                     size="lg"
-                    class="mt-5 w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                    class="mt-5 w-full bg-sky font-semibold text-white hover:bg-sky-dark"
                 >
                     <Link :href="preview.register_url"
                         >Try the registration form</Link
@@ -343,7 +343,7 @@ const registrationNote = computed(() => {
                     v-else-if="camp.registration_state === 'open'"
                     as-child
                     size="lg"
-                    class="mt-5 w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                    class="mt-5 w-full bg-sky font-semibold text-white hover:bg-sky-dark"
                 >
                     <Link :href="camp.register_url">Register now</Link>
                 </Button>

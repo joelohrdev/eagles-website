@@ -41,7 +41,7 @@ defineProps<{
                 </p>
                 <Button
                     as-child
-                    class="mt-6 bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                    class="mt-6 bg-sky font-semibold text-white hover:bg-sky-dark"
                 >
                     <Link :href="merchIndex()">Shop merch</Link>
                 </Button>
@@ -165,7 +165,7 @@ defineProps<{
                     <Button
                         as-child
                         size="lg"
-                        class="mt-6 w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                        class="mt-6 w-full bg-sky font-semibold text-white hover:bg-sky-dark"
                     >
                         <Link :href="checkoutCreate()"
                             >Checkout <ArrowRight class="size-4"

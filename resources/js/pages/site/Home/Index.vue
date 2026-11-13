@@ -137,7 +137,7 @@ const secondaryCta = computed(() =>
                 v-if="primaryCta"
                 as-child
                 size="lg"
-                class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                class="bg-sky font-semibold text-white hover:bg-sky-dark"
             >
                 <NavLink :item="primaryCta" />
             </Button>

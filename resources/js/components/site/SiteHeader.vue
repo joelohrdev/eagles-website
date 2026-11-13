@@ -101,7 +101,7 @@ watch(
                 <Button
                     v-if="showCta"
                     as-child
-                    class="hidden bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white sm:inline-flex"
+                    class="hidden bg-sky font-semibold text-white hover:bg-sky-dark sm:inline-flex"
                 >
                     <NavLink
                         :item="{
@@ -154,7 +154,7 @@ watch(
                         external: !settings!.nav_cta_url!.startsWith('/'),
                         new_tab: false,
                     }"
-                    class="mt-2 rounded-md bg-sky px-3 py-3 text-center text-base font-semibold text-navy sm:hidden"
+                    class="mt-2 rounded-md bg-sky px-3 py-3 text-center text-base font-semibold text-white sm:hidden"
                 />
             </div>
         </nav>

@@ -242,7 +242,7 @@ if (!props.order.is_pending) {
         <div class="mt-8 flex flex-wrap justify-center gap-3">
             <Button
                 as-child
-                class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                class="bg-sky font-semibold text-white hover:bg-sky-dark"
             >
                 <Link
                     :href="order.type === 'camp' ? campsIndex() : merchIndex()"

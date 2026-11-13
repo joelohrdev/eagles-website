@@ -326,7 +326,7 @@ const total = computed(
 
                 <Button
                     size="lg"
-                    class="w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white sm:w-auto"
+                    class="w-full bg-sky font-semibold text-white hover:bg-sky-dark sm:w-auto"
                     :disabled="processing"
                 >
                     <Lock class="size-4" />

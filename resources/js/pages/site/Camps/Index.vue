@@ -59,7 +59,7 @@ function dateRange(camp: CampSummary): string {
             </p>
             <Button
                 as-child
-                class="mt-6 bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                class="mt-6 bg-sky font-semibold text-white hover:bg-sky-dark"
             >
                 <Link :href="contact()">Contact us</Link>
             </Button>
@@ -138,7 +138,7 @@ function dateRange(camp: CampSummary): string {
                         <Button
                             v-if="camp.registration_state === 'open'"
                             as-child
-                            class="flex-1 bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                            class="flex-1 bg-sky font-semibold text-white hover:bg-sky-dark"
                         >
                             <Link :href="camp.register_url">Register</Link>
                         </Button>

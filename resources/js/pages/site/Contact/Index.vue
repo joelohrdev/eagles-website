@@ -163,7 +163,7 @@ const turnstile = ref<InstanceType<typeof TurnstileWidget> | null>(null);
 
                     <Button
                         :disabled="processing"
-                        class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                        class="bg-sky font-semibold text-white hover:bg-sky-dark"
                     >
                         Send message
                     </Button>

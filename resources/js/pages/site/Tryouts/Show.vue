@@ -59,7 +59,7 @@ const registrationCopy = computed(() => {
             v-if="tryout.registration_state === 'open'"
             as-child
             size="lg"
-            class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+            class="bg-sky font-semibold text-white hover:bg-sky-dark"
         >
             <Link :href="tryout.register_url!">Register now</Link>
         </Button>
@@ -204,7 +204,7 @@ const registrationCopy = computed(() => {
                         v-if="tryout.registration_state === 'open'"
                         as-child
                         size="lg"
-                        class="mt-5 w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                        class="mt-5 w-full bg-sky font-semibold text-white hover:bg-sky-dark"
                     >
                         <Link :href="tryout.register_url!">Register now</Link>
                     </Button>

@@ -260,7 +260,7 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                     >
                     <Button
                         as-child
-                        class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                        class="bg-sky font-semibold text-white hover:bg-sky-dark"
                         ><Link :href="contact()">Contact us</Link></Button
                     >
                 </div>
@@ -711,7 +711,7 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                         v-else
                         size="lg"
                         :disabled="processing || !canSubmit"
-                        class="bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                        class="bg-sky font-semibold text-white hover:bg-sky-dark"
                     >
                         {{
                             !quote || quote.total === 0

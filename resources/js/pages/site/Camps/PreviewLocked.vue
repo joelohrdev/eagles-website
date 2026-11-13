@@ -73,7 +73,7 @@ defineProps<{
                 <Button
                     type="submit"
                     size="lg"
-                    class="w-full bg-sky font-semibold text-navy hover:bg-sky-dark hover:text-white"
+                    class="w-full bg-sky font-semibold text-white hover:bg-sky-dark"
                     :disabled="processing"
                 >
                     View preview
