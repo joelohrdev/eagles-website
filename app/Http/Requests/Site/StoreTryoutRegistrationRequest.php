@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Site;
 
 use App\Http\Requests\Concerns\NormalizesPhoneNumbers;
+use App\Rules\PassesTurnstile;
+use App\Services\Turnstile;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,6 +36,10 @@ class StoreTryoutRegistrationRequest extends FormRequest
             'primary_position' => ['nullable', Rule::in(self::POSITIONS)],
             'notes' => ['nullable', 'string', 'max:1000'],
             'website' => ['nullable', 'size:0'],
+            /** Tryouts are free, so nothing but the bot check stops scripted sign-ups from filling one. */
+            ...app(Turnstile::class)->isEnabled() ? [
+                Turnstile::RESPONSE_FIELD => ['required', 'string', new PassesTurnstile($this->ip())],
+            ] : [],
         ];
     }
 
@@ -42,7 +48,10 @@ class StoreTryoutRegistrationRequest extends FormRequest
      */
     public function messages(): array
     {
-        return $this->phoneMessages('phone');
+        return [
+            ...$this->phoneMessages('phone'),
+            Turnstile::RESPONSE_FIELD.'.required' => 'Please confirm you are not a robot and try again.',
+        ];
     }
 
     /**

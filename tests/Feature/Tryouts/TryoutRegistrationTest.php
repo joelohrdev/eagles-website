@@ -4,6 +4,9 @@ use App\Mail\TryoutRegistrationConfirmation;
 use App\Mail\TryoutRegistrationReceived;
 use App\Models\Tryout;
 use App\Models\TryoutRegistration;
+use App\Services\Turnstile;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -149,3 +152,45 @@ test('tryout registration phones must have ten digits', function () {
 
     expect(TryoutRegistration::count())->toBe(0);
 });
+
+test('the turnstile site key reaches the tryout registration page once both keys are set', function () {
+    $tryout = Tryout::factory()->create();
+
+    $this->get(route('tryouts.register', $tryout))
+        ->assertInertia(fn (Assert $page) => $page->where('turnstileSiteKey', null));
+
+    config(['services.turnstile.site_key' => 'test-site-key', 'services.turnstile.secret_key' => 'test-secret-key']);
+
+    $this->get(route('tryouts.register', $tryout))
+        ->assertInertia(fn (Assert $page) => $page->where('turnstileSiteKey', 'test-site-key'));
+});
+
+test('a registration with a valid turnstile token is saved', function () {
+    Mail::fake();
+    config(['services.turnstile.site_key' => 'test-site-key', 'services.turnstile.secret_key' => 'test-secret-key']);
+    Http::fake([Turnstile::VERIFY_URL => Http::response(['success' => true])]);
+    $tryout = Tryout::factory()->create();
+
+    $this->post(route('tryouts.register.store', $tryout), validRegistration([Turnstile::RESPONSE_FIELD => 'good-token']))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('tryouts.show', $tryout).'?registered=1');
+
+    expect(TryoutRegistration::count())->toBe(1);
+    Http::assertSent(fn (Request $request) => $request['response'] === 'good-token');
+});
+
+test('a registration is rejected when the turnstile check fails or is missing', function (array $overrides) {
+    Mail::fake();
+    config(['services.turnstile.site_key' => 'test-site-key', 'services.turnstile.secret_key' => 'test-secret-key']);
+    Http::fake([Turnstile::VERIFY_URL => Http::response(['success' => false])]);
+    $tryout = Tryout::factory()->create();
+
+    $this->post(route('tryouts.register.store', $tryout), validRegistration($overrides))
+        ->assertSessionHasErrors(Turnstile::RESPONSE_FIELD);
+
+    expect(TryoutRegistration::count())->toBe(0);
+    Mail::assertNothingQueued();
+})->with([
+    'token rejected' => [[Turnstile::RESPONSE_FIELD => 'bad-token']],
+    'token missing' => [[]],
+]);

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { Form, Link } from '@inertiajs/vue3';
 import { ArrowLeft } from '@lucide/vue';
+import { ref } from 'vue';
 import TryoutRegistrationController from '@/actions/App/Http/Controllers/Site/TryoutRegistrationController';
 import DateTimePicker from '@/components/DateTimePicker.vue';
 import InputError from '@/components/InputError.vue';
 import PageHero from '@/components/site/PageHero.vue';
 import PhoneInput from '@/components/site/PhoneInput.vue';
 import RegistrationStateBadge from '@/components/site/RegistrationStateBadge.vue';
+import TurnstileWidget from '@/components/site/TurnstileWidget.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +27,11 @@ import type { Tryout } from '@/types/tryouts';
 defineProps<{
     tryout: Tryout;
     positions: string[];
+    /** Cloudflare Turnstile site key, or null while the bot check is switched off. */
+    turnstileSiteKey?: string | null;
 }>();
+
+const turnstile = ref<InstanceType<typeof TurnstileWidget> | null>(null);
 
 const today = new Date().toISOString().slice(0, 10);
 const earliestBirthdate = `${new Date().getFullYear() - 25}-01-01`;
@@ -105,6 +111,7 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                 v-bind="TryoutRegistrationController.store.form(tryout.slug)"
                 v-slot="{ errors, processing }"
                 class="space-y-10"
+                @finish="turnstile?.reset()"
             >
                 <div
                     v-if="errors.registration"
@@ -267,6 +274,14 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                         tabindex="-1"
                         autocomplete="off"
                     />
+                </div>
+
+                <div v-if="turnstileSiteKey" class="grid content-start gap-2">
+                    <TurnstileWidget
+                        ref="turnstile"
+                        :site-key="turnstileSiteKey"
+                    />
+                    <InputError :message="errors['cf-turnstile-response']" />
                 </div>
 
                 <div class="flex flex-wrap items-center gap-3 border-t pt-6">

@@ -11,6 +11,7 @@ use App\Models\TryoutRegistration;
 use App\Services\ActivityLogger;
 use App\Services\SeoResolver;
 use App\Services\SiteSettings;
+use App\Services\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -23,6 +24,7 @@ class TryoutRegistrationController extends Controller
         private SeoResolver $seo,
         private SiteSettings $settings,
         private ActivityLogger $activity,
+        private Turnstile $turnstile,
     ) {}
 
     public function create(Tryout $tryout): Response
@@ -32,6 +34,7 @@ class TryoutRegistrationController extends Controller
         return Inertia::render('site/Tryouts/Register', [
             'tryout' => TryoutController::present($tryout),
             'positions' => StoreTryoutRegistrationRequest::POSITIONS,
+            'turnstileSiteKey' => $this->turnstile->siteKey(),
             'seo' => $this->seo->forRoute('tryouts.register', [
                 'title' => "Register — {$tryout->title}",
                 'description' => TryoutController::autoDescription($tryout),
@@ -58,7 +61,7 @@ class TryoutRegistrationController extends Controller
             }
 
             return $locked->registrations()->create([
-                ...$request->safe()->except('website'),
+                ...$request->safe()->except(['website', Turnstile::RESPONSE_FIELD]),
                 'registered_at' => now(),
             ]);
         });
