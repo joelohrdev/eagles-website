@@ -2,6 +2,7 @@
 
 namespace App\Actions\Camps;
 
+use App\Actions\Orders\CancelPendingOrder;
 use App\Actions\Orders\CreateCheckoutSession;
 use App\Actions\Orders\MarkOrderPaid;
 use App\Contracts\PaymentGateway;
@@ -18,6 +19,7 @@ use App\Models\Order;
 use App\Services\ActivityLogger;
 use App\Services\SiteSettings;
 use App\Support\Payments\CheckoutSession;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -41,6 +43,7 @@ class RegisterForCamp
 
     public function __construct(
         private CreateCheckoutSession $createCheckoutSession,
+        private CancelPendingOrder $cancelPendingOrder,
         private QuoteCampSelection $quoteCampSelection,
         private MarkOrderPaid $markOrderPaid,
         private PaymentGateway $gateway,
@@ -62,6 +65,8 @@ class RegisterForCamp
         $ageGroupId = isset($data['camp_age_group_id']) ? (int) $data['camp_age_group_id'] : null;
         $couponCode = $data['coupon_code'] ?? null;
         $attributes = Arr::except($data, ['days', 'camp_age_group_id', 'coupon_code']);
+
+        $this->releaseUnpaidHolds($camp, $attributes, $dayIds);
 
         /** @var array{registration: CampRegistration, order: Order|null} $result */
         $result = DB::transaction(function () use ($camp, $dayIds, $ageGroupId, $couponCode, $attributes): array {
@@ -171,8 +176,30 @@ class RegisterForCamp
     }
 
     /**
-     * Stop the same player taking a second spot on a day they already hold, e.g.
-     * after going back from the payment page and submitting the form again.
+     * Signing the same player up again replaces their unpaid hold instead of
+     * blocking the purchase, e.g. after going back from the payment page or
+     * closing it. The old payment page is closed first so it can't be paid too;
+     * a hold whose page was already paid is left for ensureNotAlreadyBooked().
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  list<int>  $dayIds
+     */
+    private function releaseUnpaidHolds(Camp $camp, array $attributes, array $dayIds): void
+    {
+        $holds = $this->bookingsFor($camp, $attributes, $dayIds)
+            ->where('status', RegistrationStatus::PendingPayment)
+            ->with('order')
+            ->get();
+
+        foreach ($holds as $hold) {
+            if ($hold->order?->isPending() && $this->gateway->closeCheckoutSession($hold->order)) {
+                $this->cancelPendingOrder->handle($hold->order, 'Replaced by a new sign-up for the same player');
+            }
+        }
+    }
+
+    /**
+     * Stop the same player taking a second spot on a day they already hold.
      *
      * @param  array<string, mixed>  $attributes
      * @param  list<int>  $dayIds
@@ -181,21 +208,32 @@ class RegisterForCamp
      */
     private function ensureNotAlreadyBooked(Camp $camp, array $attributes, array $dayIds): void
     {
-        $existing = $camp->registrations()
-            ->countsAgainstCapacity()
-            ->whereDate('player_birthdate', (string) $attributes['player_birthdate'])
-            ->whereRaw('lower(player_first_name) = ?', [Str::lower(trim((string) $attributes['player_first_name']))])
-            ->whereRaw('lower(player_last_name) = ?', [Str::lower(trim((string) $attributes['player_last_name']))])
-            ->whereHas('days', fn ($query) => $query->whereIn('camp_session_days.id', $dayIds))
-            ->first();
+        $existing = $this->bookingsFor($camp, $attributes, $dayIds)->first();
 
         if ($existing === null) {
             return;
         }
 
         throw ValidationException::withMessages(['registration' => $existing->status === RegistrationStatus::PendingPayment
-            ? __(':player already has a spot on hold for these days. Finish paying for it, or wait up to :minutes minutes for the hold to end.', ['player' => $existing->playerName(), 'minutes' => CampRegistration::PENDING_HOLD_MINUTES])
+            ? __('A payment for :player on these days is already being confirmed. Check your email for the confirmation before signing up again.', ['player' => $existing->playerName()])
             : __(':player is already registered for these days.', ['player' => $existing->playerName()])]);
+    }
+
+    /**
+     * This player's registrations that hold a spot on any of the given days.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  list<int>  $dayIds
+     * @return HasMany<CampRegistration, Camp>
+     */
+    private function bookingsFor(Camp $camp, array $attributes, array $dayIds): HasMany
+    {
+        return $camp->registrations()
+            ->countsAgainstCapacity()
+            ->whereDate('player_birthdate', (string) $attributes['player_birthdate'])
+            ->whereRaw('lower(player_first_name) = ?', [Str::lower(trim((string) $attributes['player_first_name']))])
+            ->whereRaw('lower(player_last_name) = ?', [Str::lower(trim((string) $attributes['player_last_name']))])
+            ->whereHas('days', fn ($query) => $query->whereIn('camp_session_days.id', $dayIds));
     }
 
     /**

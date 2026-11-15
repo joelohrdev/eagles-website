@@ -178,14 +178,37 @@ test('the expiry job leaves a hold alone when its Stripe page was already paid',
         ->and($order->campRegistration->status)->toBe(RegistrationStatus::PendingPayment);
 });
 
-test('the same player cannot take a second spot on a day they already hold', function () {
+test('signing the same player up again replaces their unpaid hold and closes its payment page', function () {
     ['camp' => $camp, 'form' => $form] = pitchingSignUp();
     $this->post(route('camps.register.store', $camp), $form)->assertSessionHasNoErrors();
+    $first = Order::query()->sole();
 
     $this->post(route('camps.register.store', $camp), [...$form, 'email' => 'other@example.com', 'player_first_name' => 'JAMIE'])
-        ->assertSessionHasErrors(['registration' => 'Jamie Rivera already has a spot on hold for these days. Finish paying for it, or wait up to 35 minutes for the hold to end.']);
+        ->assertSessionHasNoErrors();
+
+    expect($first->refresh()->status)->toBe(OrderStatus::Cancelled)
+        ->and(app(PaymentGateway::class)->closedSessions)->toBe([$first->stripe_checkout_session_id])
+        ->and(CampRegistration::query()->countsAgainstCapacity()->sole()->email)->toBe('other@example.com');
+});
+
+test('the same player cannot sign up again while their first payment is being confirmed', function () {
+    ['camp' => $camp, 'form' => $form] = pitchingSignUp();
+    $this->post(route('camps.register.store', $camp), $form)->assertSessionHasNoErrors();
+    app(PaymentGateway::class)->paidSessions[] = Order::query()->sole()->stripe_checkout_session_id;
+
+    $this->post(route('camps.register.store', $camp), $form)
+        ->assertSessionHasErrors(['registration' => 'A payment for Jamie Rivera on these days is already being confirmed. Check your email for the confirmation before signing up again.']);
 
     expect(CampRegistration::count())->toBe(1);
+});
+
+test('a player who already paid cannot take a second spot on the same day', function () {
+    ['camp' => $camp, 'form' => $form] = pitchingSignUp();
+    $this->post(route('camps.register.store', $camp), $form)->assertSessionHasNoErrors();
+    app(MarkOrderPaid::class)->handle(Order::query()->sole());
+
+    $this->post(route('camps.register.store', $camp), $form)
+        ->assertSessionHasErrors(['registration' => 'Jamie Rivera is already registered for these days.']);
 });
 
 test('a player can sign up for a different session of the same camp later', function () {
