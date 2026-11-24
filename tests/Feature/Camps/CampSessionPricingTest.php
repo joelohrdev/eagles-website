@@ -409,3 +409,14 @@ test('CSV cells that start like a spreadsheet formula are written as plain text'
     expect($this->actingAs(User::factory()->staff()->create())->get(route('admin.camps.registrations.export', $camp))->streamedContent())
         ->toContain('"\'=HYPERLINK(""http://example.com"",""x"")"');
 });
+
+test('the registration page flags days that have already happened', function () {
+    ['camp' => $camp] = thanksgivingCamp();
+    $this->travelTo('2026-11-22 09:00:00');
+
+    $this->get(route('camps.register', $camp))
+        ->assertInertia(fn ($page) => $page
+            ->where('camp.sessions.0.days.0.past', true)
+            ->where('camp.sessions.0.days.1.past', false)
+            ->where('camp.sessions.1.days.0.past', false));
+});

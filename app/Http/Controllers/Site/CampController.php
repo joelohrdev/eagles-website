@@ -134,6 +134,7 @@ class CampController extends Controller
                     'label' => $day->label,
                     'times' => $day->times->map(fn (CampDayTime $time): array => [
                         'age_group_id' => $time->camp_age_group_id,
+                    'past' => $day->date !== null && $day->date->lt(today()),
                         'range' => $time->range(),
                     ])->all(),
                     'remaining' => $slots->get($day->id, collect())->map(fn (array $slot): array => [

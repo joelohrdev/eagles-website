@@ -289,6 +289,8 @@ test('guests cannot open a camp preview', function () {
 });
 
 test('staff can try the registration form on a draft and get live totals', function () {
+    $this->travelTo('2026-11-01 09:00:00');
+
     $this->actingAs($this->staff)->post(route('admin.camps.store'), thanksgivingCampForm(['is_published' => 0]));
     $camp = Camp::query()->sole();
     Coupon::factory()->fixedPerItem(2500)->combinable()->create(['code' => 'THANKS30']);

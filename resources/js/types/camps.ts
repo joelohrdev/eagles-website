@@ -28,6 +28,8 @@ export type CampSummary = {
 export type CampScheduleDay = {
     id: number;
     date: string | null;
+    /** The day has already happened, so it can't be booked. */
+    past: boolean;
     title: string;
     label: string | null;
     times: { age_group_id: number | null; range: string }[];

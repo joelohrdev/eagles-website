@@ -46,7 +46,9 @@ const ageGroupId = ref<number | null>(
 );
 
 const onlyDay =
-    props.camp.sessions.length === 1 && props.camp.sessions[0].days.length === 1
+    props.camp.sessions.length === 1 &&
+    props.camp.sessions[0].days.length === 1 &&
+    !props.camp.sessions[0].days[0].past
         ? props.camp.sessions[0].days[0].id
         : null;
 const selectedDays = ref<number[]>(onlyDay ? [onlyDay] : []);
@@ -95,11 +97,20 @@ function isWholeSession(session: CampScheduleSession): boolean {
     );
 }
 
+/** A session with a day behind it can't be booked whole, only by its remaining days. */
+function hasPastDay(session: CampScheduleSession): boolean {
+    return session.days.some((day) => day.past);
+}
+
 function allowsSingleDays(session: CampScheduleSession): boolean {
     return session.day_price !== null && session.days.length > 1;
 }
 
 function toggleSession(session: CampScheduleSession, checked: boolean) {
+    if (hasPastDay(session)) {
+        return;
+    }
+
     const ids = sessionDayIds(session);
     const others = selectedDays.value.filter((id) => !ids.includes(id));
 
@@ -107,6 +118,10 @@ function toggleSession(session: CampScheduleSession, checked: boolean) {
 }
 
 function toggleDay(day: CampScheduleDay, checked: boolean) {
+    if (day.past) {
+        return;
+    }
+
     selectedDays.value = checked
         ? [...selectedDays.value, day.id]
         : selectedDays.value.filter((id) => id !== day.id);
@@ -355,10 +370,16 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                         class="rounded-lg border"
                     >
                         <label
-                            class="flex cursor-pointer items-start gap-3 p-4"
+                            class="flex items-start gap-3 p-4"
+                            :class="
+                                hasPastDay(session)
+                                    ? 'opacity-60'
+                                    : 'cursor-pointer'
+                            "
                         >
                             <Checkbox
                                 class="mt-0.5"
+                                :disabled="hasPastDay(session)"
                                 :model-value="isWholeSession(session)"
                                 @update:model-value="
                                     (checked) =>
@@ -389,7 +410,7 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                             <li
                                 v-for="day in session.days"
                                 :key="day.id"
-                                :class="{ 'opacity-60': isDayFull(day) }"
+                                :class="{ 'opacity-60': isDayFull(day) || day.past }"
                             >
                                 <!-- The whole row toggles the day when single days can be booked. -->
                                 <component
@@ -402,7 +423,8 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                                     :class="{
                                         'cursor-pointer':
                                             allowsSingleDays(session) &&
-                                            !isDayFull(day),
+                                            !isDayFull(day) &&
+                                            !day.past,
                                     }"
                                 >
                                     <Checkbox
@@ -411,7 +433,7 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                                         :model-value="
                                             selectedDays.includes(day.id)
                                         "
-                                        :disabled="isDayFull(day)"
+                                        :disabled="isDayFull(day) || day.past"
                                         :aria-label="day.title"
                                         @update:model-value="
                                             (checked) =>
@@ -429,7 +451,12 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                                         >
                                     </span>
                                     <span
-                                        v-if="isDayFull(day)"
+                                        v-if="day.past"
+                                        class="text-xs font-semibold whitespace-nowrap text-muted-foreground uppercase"
+                                        >Already happened</span
+                                    >
+                                    <span
+                                        v-else-if="isDayFull(day)"
                                         class="text-xs font-semibold whitespace-nowrap text-destructive uppercase"
                                         >Full</span
                                     >
