@@ -410,7 +410,9 @@ const defaultBirthMonth = `${new Date().getFullYear() - 12}-01-01`;
                             <li
                                 v-for="day in session.days"
                                 :key="day.id"
-                                :class="{ 'opacity-60': isDayFull(day) || day.past }"
+                                :class="{
+                                    'opacity-60': isDayFull(day) || day.past,
+                                }"
                             >
                                 <!-- The whole row toggles the day when single days can be booked. -->
                                 <component
